@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
   const token = request.cookies.get("token")?.value || request.headers.get("authorization")?.replace("Bearer ", "");
 
-  const publicPaths = ["/login", "/register", "/api/auth"];
+  const publicPaths = ["/login", "/register", "/api/auth", "/api/health"];
 
   const isPublic = publicPaths.some((path) => request.nextUrl.pathname.startsWith(path));
 
