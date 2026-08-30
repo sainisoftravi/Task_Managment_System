@@ -25,7 +25,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends libc6 openssl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libc6 openssl curl && rm -rf /var/lib/apt/lists/*
 
 RUN addgroup --system --gid 3001 --system nextjs
 RUN adduser \
