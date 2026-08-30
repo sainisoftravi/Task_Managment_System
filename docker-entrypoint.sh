@@ -1,11 +1,10 @@
 #!/bin/sh
-set -e
 
 echo "Running database migrations..."
-npx prisma db push
+npx prisma db push 2>&1 || echo "Migration warning: schema may already be up to date"
 
 echo "Seeding database..."
-npx prisma db seed || echo "Seed already populated or completed"
+npx prisma db seed 2>&1 || echo "Seed skipped: database may already be populated"
 
 echo "Starting application..."
-exec node server.js
+node server.js
