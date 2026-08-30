@@ -43,9 +43,9 @@ export async function POST(req: Request) {
         avatar: user.avatar,
       },
     });
-  } catch (err) {
-    console.error("Login error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (err: any) {
+    console.error("Login error details:", err);
+    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
   }
 }
 
