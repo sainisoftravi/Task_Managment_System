@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Project, Task, TaskDependency, TaskList, Milestone } from "@/types";
 import KanbanBoard from "@/components/kanban/kanban-board";
 import GanttChart from "@/components/gantt/gantt-chart";
@@ -11,12 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getAuthHeaders } from "@/lib/utils";
 import { LayoutDashboard, KanbanSquare, BarChart3, List, Plus, Search } from "lucide-react";
 
-interface ProjectOverviewProps {
-  params: { id: string };
-}
-
-export default function ProjectOverviewPage({ params }: ProjectOverviewProps) {
-  const { id } = params;
+export default function ProjectOverviewPage() {
+   const params = useParams<{ id: string }>();
+   const { id } = params;
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [dependencies, setDependencies] = useState<TaskDependency[]>([]);

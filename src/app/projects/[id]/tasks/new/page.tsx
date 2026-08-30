@@ -1,17 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Project, User } from "@/types";
 import { getAuthHeaders } from "@/lib/utils";
 import { ArrowLeft, Plus, Save, X } from "lucide-react";
 
-interface NewTaskProps {
-  params: { id: string };
-}
-
-export default function NewTaskPage({ params }: NewTaskProps) {
-  const { id } = params;
+export default function NewTaskPage() {
+   const params = useParams<{ id: string }>();
+   const { id } = params;
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");

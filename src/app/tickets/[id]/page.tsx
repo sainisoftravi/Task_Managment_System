@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import {
   Ticket as TicketType,
@@ -33,12 +33,9 @@ import {
   X,
 } from "lucide-react";
 
-interface TicketDetailProps {
-  params: { id: string };
-}
-
-export default function TicketDetailPage({ params }: TicketDetailProps) {
-  const { id } = params;
+export default function TicketDetailPage() {
+   const params = useParams<{ id: string }>();
+   const { id } = params;
   const router = useRouter();
   const [ticket, setTicket] = useState<TicketType | null>(null);
   const [comments, setComments] = useState<TicketComment[]>([]);
