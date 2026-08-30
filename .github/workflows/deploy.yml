@@ -27,13 +27,25 @@ jobs:
         run: |
           docker compose build
 
+      - name: Stop existing containers
+        run: |
+          docker compose down
+
       - name: Start containers
         run: |
           docker compose up -d
 
-      - name: Wait for containers
+      - name: Wait for PostgreSQL
         run: |
-          sleep 10
+          sleep 15
+
+      - name: Push database schema
+        run: |
+          docker compose exec -T app npx prisma db push
+
+      - name: Seed database
+        run: |
+          docker compose exec -T app npm run db:seed || echo "Seed already populated"
 
       - name: Check deployment
         run: |
