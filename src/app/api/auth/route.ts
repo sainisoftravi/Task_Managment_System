@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       teamId: user.teamId,
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       token,
       user: {
         id: user.id,
@@ -43,6 +43,16 @@ export async function POST(req: Request) {
         avatar: user.avatar,
       },
     });
+
+    response.cookies.set("token", token, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: "/",
+    });
+
+    return response;
   } catch (err: any) {
     console.error("Login error details:", err);
     return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });

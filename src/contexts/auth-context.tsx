@@ -46,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
+    document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
     setToken(data.token);
     setUser(data.user);
   };
@@ -53,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     setToken(null);
     setUser(null);
     window.location.href = "/login";
