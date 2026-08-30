@@ -2,7 +2,7 @@ FROM node:20-slim AS base
 WORKDIR /app
 
 FROM base AS deps
-RUN apt-get update && apt-get install -y --no-install-recommends libc6 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libc6 openssl && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 RUN npm ci
 
