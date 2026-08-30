@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Ticket, TicketStatus, TicketPriority, Ticket as TicketType } from "@/types";
+import { TicketStatus, TicketPriority, Ticket as TicketType, User as UserType } from "@/types";
 import { colorForPriority, colorForStatus, formatDateTime, generateTicketKey } from "@/lib/utils";
 import {
   Search,
@@ -13,6 +12,14 @@ import {
   User,
   AlertCircle,
   CheckCircle,
+  Trash2,
+  UserCheck,
+  Tag,
+  Calendar,
+  CheckSquare,
+  Square,
+  ChevronDown,
+  Loader2,
 } from "lucide-react";
 
 const STATUSES: { id: TicketStatus; name: string }[] = [
@@ -30,22 +37,37 @@ const PRIORITIES: { id: TicketPriority; name: string }[] = [
   { id: "URGENT", name: "Urgent" },
 ];
 
-function debounce<T extends (...args: any[]) => void>(fn: T, delay: number) {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => fn(...args), delay);
-  };
-}
-
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<TicketType[]>([]);
+  const [users, setUsers] = useState<UserType[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+
+  // Filters
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "ALL">("ALL");
   const [priorityFilter, setPriorityFilter] = useState<TicketPriority | "ALL">("ALL");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("ALL");
+  const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
+  const [startDateFilter, setStartDateFilter] = useState("");
+  const [endDateFilter, setEndDateFilter] = useState("");
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
+
+  // Selection & Bulk Operations
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+
+  // Fetch Users for Agent filter & Bulk Assignment
+  useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    fetch("/api/users", {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setUsers(Array.isArray(data) ? data : data.users || []))
+      .catch(() => {});
+  }, []);
 
   const fetchTickets = useCallback(async (pageNum = page) => {
     setLoading(true);
@@ -53,6 +75,10 @@ export default function TicketsPage() {
     if (search) params.set("search", search);
     if (statusFilter !== "ALL") params.set("status", statusFilter);
     if (priorityFilter !== "ALL") params.set("priority", priorityFilter);
+    if (assigneeFilter !== "ALL") params.set("assigneeId", assigneeFilter);
+    if (categoryFilter !== "ALL") params.set("category", categoryFilter);
+    if (startDateFilter) params.set("startDate", startDateFilter);
+    if (endDateFilter) params.set("endDate", endDateFilter);
 
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     const res = await fetch(`/api/tickets?${params}`, {
@@ -61,200 +87,406 @@ export default function TicketsPage() {
 
     if (res.ok) {
       const data = await res.json();
-      setTickets(data.tickets);
+      setTickets(data.tickets || []);
       setTotal(data.pagination?.total ?? 0);
     }
     setLoading(false);
-  }, [page, search, statusFilter, priorityFilter]);
+  }, [page, search, statusFilter, priorityFilter, assigneeFilter, categoryFilter, startDateFilter, endDateFilter]);
 
   useEffect(() => {
     fetchTickets();
   }, [fetchTickets]);
 
-  const debouncedSearch = useCallback(
-    debounce((val: string) => {
-      setSearch(val);
-      setPage(1);
-    }, 300),
-    [],
-  );
-
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    debouncedSearch(e.target.value);
+  const toggleSelectAll = () => {
+    if (selectedIds.length === tickets.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(tickets.map((t) => t.id));
+    }
   };
 
-  const handleStatusFilter = (status: TicketStatus | "ALL") => {
-    setStatusFilter(status);
-    setPage(1);
+  const toggleSelect = (id: string) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter((i) => i !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
   };
 
-  const handlePriorityFilter = (priority: TicketPriority | "ALL") => {
-    setPriorityFilter(priority);
-    setPage(1);
+  const handleBulkAction = async (action: string, payload?: any) => {
+    if (selectedIds.length === 0) return;
+    if (action === "DELETE" && !confirm(`Are you sure you want to delete ${selectedIds.length} tickets?`)) {
+      return;
+    }
+
+    setBulkActionLoading(true);
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    try {
+      const res = await fetch("/api/tickets/bulk", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          ticketIds: selectedIds,
+          action,
+          payload,
+        }),
+      });
+
+      if (res.ok) {
+        setSelectedIds([]);
+        fetchTickets();
+      } else {
+        alert("Bulk operation failed");
+      }
+    } catch (e) {
+      alert("An error occurred during bulk operation");
+    } finally {
+      setBulkActionLoading(false);
+    }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Tickets</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Support Tickets</h1>
+          <p className="text-sm text-slate-500">Help Desk ticketing & SLA management</p>
+        </div>
         <Link
           href="/tickets/new"
-          className="inline-flex items-center gap-2 rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 transition-colors"
         >
           <Plus className="h-4 w-4" />
           New Ticket
         </Link>
       </div>
 
-      <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search tickets..."
-            onChange={handleSearch}
-            className="w-full rounded-md border border-slate-300 pl-10 pr-3 py-2 text-sm focus:border-primary-500"
-          />
+      {/* Multi-Attribute Filter Toolbar */}
+      <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search title, description, or ticket ID..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="w-full rounded-lg border border-slate-300 pl-10 pr-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-2 items-center">
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as TicketStatus | "ALL");
+                setPage(1);
+              }}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 focus:border-primary-500 focus:outline-none"
+            >
+              <option value="ALL">All Statuses</option>
+              {STATUSES.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+
+            <select
+              value={priorityFilter}
+              onChange={(e) => {
+                setPriorityFilter(e.target.value as TicketPriority | "ALL");
+                setPage(1);
+              }}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 focus:border-primary-500 focus:outline-none"
+            >
+              <option value="ALL">All Priorities</option>
+              {PRIORITIES.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => setShowMoreFilters(!showMoreFilters)}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                showMoreFilters ? "border-primary-600 bg-primary-50 text-primary-700" : "border-slate-300 text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              <Filter className="h-3.5 w-3.5" />
+              Advanced Filters
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <select
-            value={statusFilter}
-            onChange={(e) => handleStatusFilter(e.target.value as TicketStatus | "ALL")}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-primary-500"
-          >
-            <option value="ALL">All Statuses</option>
-            {STATUSES.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
+        {/* Expanded Filters Drawer */}
+        {showMoreFilters && (
+          <div className="grid grid-cols-1 gap-4 pt-3 border-t border-slate-100 sm:grid-cols-3">
+            <div>
+              <label className="block text-[11px] font-semibold uppercase text-slate-500 mb-1">Assignee / Agent</label>
+              <select
+                value={assigneeFilter}
+                onChange={(e) => { setAssigneeFilter(e.target.value); setPage(1); }}
+                className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-700 focus:outline-none"
+              >
+                <option value="ALL">All Assignees</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                ))}
+              </select>
+            </div>
 
-          <select
-            value={priorityFilter}
-            onChange={(e) => handlePriorityFilter(e.target.value as TicketPriority | "ALL")}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-primary-500"
-          >
-            <option value="ALL">All Priorities</option>
-            {PRIORITIES.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
+            <div>
+              <label className="block text-[11px] font-semibold uppercase text-slate-500 mb-1">Created Date From</label>
+              <input
+                type="date"
+                value={startDateFilter}
+                onChange={(e) => { setStartDateFilter(e.target.value); setPage(1); }}
+                className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-700 focus:outline-none"
+              />
+            </div>
 
-          <button className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100">
-            <Filter className="h-4 w-4" />
-            More Filters
-          </button>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        {loading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-16 animate-pulse rounded-lg border border-slate-200 bg-white" />
-            ))}
+            <div>
+              <label className="block text-[11px] font-semibold uppercase text-slate-500 mb-1">Created Date To</label>
+              <input
+                type="date"
+                value={endDateFilter}
+                onChange={(e) => { setEndDateFilter(e.target.value); setPage(1); }}
+                className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-700 focus:outline-none"
+              />
+            </div>
           </div>
-        ) : tickets.length === 0 ? (
-          <div className="py-12 text-center">
-            <CheckCircle className="mx-auto h-12 w-12 text-slate-300" />
-            <p className="mt-2 text-slate-600">No tickets found</p>
-          </div>
-        ) : (
-          tickets.map((ticket) => <TicketRow key={ticket.id} ticket={ticket} />)
         )}
       </div>
 
+      {/* Select All Bar */}
+      {tickets.length > 0 && (
+        <div className="flex items-center justify-between px-2 text-xs text-slate-500">
+          <button onClick={toggleSelectAll} className="flex items-center gap-2 font-medium hover:text-slate-900">
+            {selectedIds.length === tickets.length && tickets.length > 0 ? (
+              <CheckSquare className="h-4 w-4 text-primary-600" />
+            ) : (
+              <Square className="h-4 w-4 text-slate-400" />
+            )}
+            <span>Select All ({tickets.length})</span>
+          </button>
+          <span>{selectedIds.length} selected</span>
+        </div>
+      )}
+
+      {/* Ticket List */}
+      <div className="space-y-3">
+        {loading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-20 animate-pulse rounded-xl border border-slate-200 bg-white" />
+            ))}
+          </div>
+        ) : tickets.length === 0 ? (
+          <div className="rounded-xl border border-slate-200 bg-white py-16 text-center">
+            <CheckCircle className="mx-auto h-12 w-12 text-slate-300" />
+            <p className="mt-3 font-medium text-slate-700">No tickets found matching filters</p>
+            <p className="text-xs text-slate-400 mt-1">Try resetting search filters or create a new ticket</p>
+          </div>
+        ) : (
+          tickets.map((ticket) => (
+            <TicketListItem
+              key={ticket.id}
+              ticket={ticket}
+              isSelected={selectedIds.includes(ticket.id)}
+              onToggleSelect={() => toggleSelect(ticket.id)}
+            />
+          ))
+        )}
+      </div>
+
+      {/* Pagination */}
       {total > 0 && (
-        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3">
-          <p className="text-sm text-slate-600">{total} tickets total</p>
+        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <p className="text-xs text-slate-500">{total} tickets total</p>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage(Math.max(1, page - 1))}
               disabled={page === 1}
-              className="rounded-md border border-slate-300 px-2 py-1 text-sm disabled:opacity-50"
+              className="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium disabled:opacity-50"
             >
               Previous
             </button>
-            <span className="text-sm text-slate-600">Page {page}</span>
+            <span className="text-xs font-medium text-slate-600">Page {page}</span>
             <button
               onClick={() => setPage(page + 1)}
               disabled={page >= Math.ceil(total / 25)}
-              className="rounded-md border border-slate-300 px-2 py-1 text-sm disabled:opacity-50"
+              className="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium disabled:opacity-50"
             >
               Next
             </button>
           </div>
         </div>
       )}
+
+      {/* Floating Bulk Action Bar */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 rounded-xl bg-slate-900 px-6 py-3.5 text-white shadow-2xl backdrop-blur-md">
+          <span className="text-xs font-semibold border-r border-slate-700 pr-3">
+            {selectedIds.length} Selected
+          </span>
+
+          {bulkActionLoading ? (
+            <Loader2 className="h-5 w-5 animate-spin text-primary-400" />
+          ) : (
+            <div className="flex items-center gap-2">
+              {/* Bulk Status */}
+              <select
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleBulkAction("UPDATE_STATUS", { status: e.target.value });
+                    e.target.value = "";
+                  }
+                }}
+                className="rounded-md bg-slate-800 border border-slate-700 px-2.5 py-1 text-xs text-slate-200 focus:outline-none"
+              >
+                <option value="">Set Status...</option>
+                {STATUSES.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+
+              {/* Bulk Priority */}
+              <select
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleBulkAction("UPDATE_PRIORITY", { priority: e.target.value });
+                    e.target.value = "";
+                  }
+                }}
+                className="rounded-md bg-slate-800 border border-slate-700 px-2.5 py-1 text-xs text-slate-200 focus:outline-none"
+              >
+                <option value="">Set Priority...</option>
+                {PRIORITIES.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+
+              {/* Bulk Agent Assign */}
+              <select
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleBulkAction("ASSIGN_AGENT", { assigneeId: e.target.value === "UNASSIGN" ? null : e.target.value });
+                    e.target.value = "";
+                  }
+                }}
+                className="rounded-md bg-slate-800 border border-slate-700 px-2.5 py-1 text-xs text-slate-200 focus:outline-none"
+              >
+                <option value="">Assign Agent...</option>
+                <option value="UNASSIGN">Unassign</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                ))}
+              </select>
+
+              {/* Bulk Delete */}
+              <button
+                onClick={() => handleBulkAction("DELETE")}
+                className="inline-flex items-center gap-1 rounded-md bg-red-600/90 px-3 py-1 text-xs font-semibold text-white hover:bg-red-600 transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-function TicketRow({ ticket }: { ticket: TicketType }) {
+function TicketListItem({
+  ticket,
+  isSelected,
+  onToggleSelect,
+}: {
+  ticket: TicketType;
+  isSelected: boolean;
+  onToggleSelect: () => void;
+}) {
   const isSLAWarning = ticket.slaDueAt && new Date(ticket.slaDueAt).getTime() - Date.now() < 60 * 60 * 1000 && !ticket.slaBreached;
   const isSlaBreached = ticket.slaBreached;
 
   return (
-    <Link
-      href={`/tickets/${ticket.id}`}
-      className="block rounded-lg border border-slate-200 bg-white p-4 transition-colors hover:bg-slate-50"
+    <div
+      className={`group flex items-start gap-4 rounded-xl border p-4 transition-all ${
+        isSelected ? "border-primary-500 bg-primary-50/20 shadow-sm" : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
+      }`}
     >
-      <div className="flex items-start gap-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-medium text-slate-500">
-              {generateTicketKey(ticket.id)}
-            </span>
-            <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${colorForPriority(ticket.priority)}`}>
-              {ticket.priority}
-            </span>
-            {isSlaBreached && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
-                <AlertCircle className="h-3 w-3" />
-                SLA Breached
-              </span>
-            )}
-            {isSLAWarning && !isSlaBreached && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-                <Clock className="h-3 w-3" />
-                SLA Warning
-              </span>
-            )}
-          </div>
+      <button onClick={onToggleSelect} className="mt-1 text-slate-400 hover:text-slate-700">
+        {isSelected ? (
+          <CheckSquare className="h-5 w-5 text-primary-600" />
+        ) : (
+          <Square className="h-5 w-5 text-slate-300 group-hover:text-slate-400" />
+        )}
+      </button>
 
-          <h3 className="mt-1 font-medium text-slate-900 line-clamp-1">{ticket.title}</h3>
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-mono text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+            {generateTicketKey(ticket.id)}
+          </span>
+          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${colorForPriority(ticket.priority)}`}>
+            {ticket.priority}
+          </span>
+          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${colorForStatus(ticket.status)}`}>
+            {ticket.status.replace("_", " ")}
+          </span>
 
-          {ticket.description && (
-            <p className="mt-1 text-sm text-slate-600 line-clamp-2">{ticket.description}</p>
+          {isSlaBreached && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-800">
+              <AlertCircle className="h-3 w-3" /> SLA Breached
+            </span>
           )}
-
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${colorForStatus(ticket.status)}`}>
-              {ticket.status.replace("_", " ")}
+          {isSLAWarning && !isSlaBreached && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+              <Clock className="h-3 w-3" /> SLA Warning
             </span>
+          )}
+        </div>
 
-            {ticket.customer && (
-              <span className="inline-flex items-center gap-1">
-                <User className="h-3 w-3" />
-                {ticket.customer.name}
-              </span>
-            )}
+        <Link href={`/tickets/${ticket.id}`} className="block mt-1.5">
+          <h3 className="font-semibold text-slate-900 group-hover:text-primary-600 transition-colors line-clamp-1">
+            {ticket.title}
+          </h3>
+          {ticket.description && (
+            <p className="mt-1 text-xs text-slate-600 line-clamp-2">{ticket.description}</p>
+          )}
+        </Link>
 
-            {ticket.assignee && (
-              <span className="inline-flex items-center gap-1">
-                <User className="h-3 w-3" />
-                {ticket.assignee.name || ticket.assignee.email}
-              </span>
-            )}
-
-            {ticket.team && <span>Team: {ticket.team.name}</span>}
-
-            {ticket.dueDate && (
-              <span>{formatDateTime(ticket.dueDate)}</span>
-            )}
-          </div>
+        <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-500">
+          {ticket.customer && (
+            <span className="inline-flex items-center gap-1 font-medium text-slate-700">
+              <User className="h-3.5 w-3.5 text-slate-400" />
+              {ticket.customer.name}
+            </span>
+          )}
+          {ticket.assignee && (
+            <span className="inline-flex items-center gap-1 text-slate-600">
+              <UserCheck className="h-3.5 w-3.5 text-slate-400" />
+              {ticket.assignee.name || ticket.assignee.email}
+            </span>
+          )}
+          {ticket.category && (
+            <span className="inline-flex items-center gap-1 text-slate-500">
+              <Tag className="h-3.5 w-3.5 text-slate-400" />
+              {ticket.category}
+            </span>
+          )}
+          <span className="inline-flex items-center gap-1 text-slate-400">
+            <Calendar className="h-3.5 w-3.5" />
+            {formatDateTime(ticket.createdAt)}
+          </span>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }

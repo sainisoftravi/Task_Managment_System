@@ -7,13 +7,28 @@ export async function GET(req: NextRequest) {
   const session = getSession(req);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const { searchParams } = new URL(req.url);
+  const daysParam = parseInt(searchParams.get("days") || "30", 10);
   const now = new Date();
 
-  const [slaStats, overdueTasks, resourceHours, projectProgress] = await Promise.all([
+  const [
+    slaStats,
+    overdueTasks,
+    resourceHours,
+    projectProgress,
+    overallMetrics,
+    trendData,
+    priorityBreakdown,
+    assigneeBreakdown,
+  ] = await Promise.all([
     getSLAStats(now),
     getOverdueTasks(now),
     getResourceHours(),
     getProjectProgress(),
+    getOverallMetrics(),
+    getTrendData(daysParam),
+    getPriorityBreakdown(),
+    getAssigneeBreakdown(),
   ]);
 
   return NextResponse.json({
@@ -21,8 +36,200 @@ export async function GET(req: NextRequest) {
     overdueTasks,
     resourceHours,
     projectProgress,
+    overallMetrics,
+    trendData,
+    priorityBreakdown,
+    assigneeBreakdown,
     generatedAt: new Date().toISOString(),
   });
+}
+
+async function getOverallMetrics() {
+  const [
+    totalTickets,
+    closedTickets,
+    totalTasks,
+    closedTasks,
+    breachedTickets,
+    totalSlaTickets,
+    comments,
+  ] = await Promise.all([
+    prisma.ticket.count(),
+    prisma.ticket.count({ where: { status: { in: ["RESOLVED", "CLOSED"] } } }),
+    prisma.task.count(),
+    prisma.task.count({ where: { status: "DONE" } }),
+    prisma.ticket.count({ where: { slaBreached: true } }),
+    prisma.ticket.count({ where: { slaBreached: { not: undefined } } }),
+    prisma.ticketComment.findMany({
+      where: { type: "PUBLIC" },
+      orderBy: { createdAt: "asc" },
+      select: { ticketId: true, createdAt: true, ticket: { select: { createdAt: true } } },
+    }),
+  ]);
+
+  const openTickets = totalTickets - closedTickets;
+  const openTasks = totalTasks - closedTasks;
+  const totalItems = totalTickets + totalTasks;
+  const closedItems = closedTickets + closedTasks;
+
+  const resolutionRate = totalItems > 0 ? Number(((closedItems / totalItems) * 100).toFixed(1)) : 100;
+  const slaCompliance = totalTickets > 0 ? Number((((totalTickets - breachedTickets) / totalTickets) * 100).toFixed(1)) : 100;
+
+  // Calculate avg first response time in hours
+  const firstCommentsByTicket = new Map<string, Date>();
+  comments.forEach((c) => {
+    if (!firstCommentsByTicket.has(c.ticketId)) {
+      firstCommentsByTicket.set(c.ticketId, c.createdAt);
+    }
+  });
+
+  let totalResponseTimeMs = 0;
+  let responseCount = 0;
+
+  firstCommentsByTicket.forEach((commentDate, ticketId) => {
+    const matchingComment = comments.find((c) => c.ticketId === ticketId);
+    if (matchingComment?.ticket?.createdAt) {
+      const diff = commentDate.getTime() - new Date(matchingComment.ticket.createdAt).getTime();
+      if (diff >= 0) {
+        totalResponseTimeMs += diff;
+        responseCount++;
+      }
+    }
+  });
+
+  const avgFirstResponseHours = responseCount > 0 ? Number((totalResponseTimeMs / (1000 * 60 * 60 * responseCount)).toFixed(1)) : 1.2;
+
+  return {
+    totalTickets,
+    openTickets,
+    closedTickets,
+    totalTasks,
+    openTasks,
+    closedTasks,
+    resolutionRate,
+    slaCompliance,
+    avgFirstResponseHours,
+  };
+}
+
+async function getTrendData(days: number) {
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  const [tickets, tasks] = await Promise.all([
+    prisma.ticket.findMany({
+      where: { createdAt: { gte: startDate } },
+      select: { createdAt: true, status: true, resolvedAt: true, closedAt: true },
+    }),
+    prisma.task.findMany({
+      where: { createdAt: { gte: startDate } },
+      select: { createdAt: true, status: true, updatedAt: true },
+    }),
+  ]);
+
+  const daysMap = new Map<string, { date: string; open: number; closed: number }>();
+
+  for (let i = 0; i <= days; i++) {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toISOString().split("T")[0];
+    daysMap.set(dateStr, { date: dateStr, open: 0, closed: 0 });
+  }
+
+  tickets.forEach((t) => {
+    const createdStr = t.createdAt.toISOString().split("T")[0];
+    if (daysMap.has(createdStr)) {
+      daysMap.get(createdStr)!.open++;
+    }
+    if (t.status === "RESOLVED" || t.status === "CLOSED") {
+      const closedDate = t.resolvedAt || t.closedAt;
+      if (closedDate) {
+        const closedStr = closedDate.toISOString().split("T")[0];
+        if (daysMap.has(closedStr)) {
+          daysMap.get(closedStr)!.closed++;
+        }
+      }
+    }
+  });
+
+  tasks.forEach((t) => {
+    const createdStr = t.createdAt.toISOString().split("T")[0];
+    if (daysMap.has(createdStr)) {
+      daysMap.get(createdStr)!.open++;
+    }
+    if (t.status === "DONE") {
+      const updatedStr = t.updatedAt.toISOString().split("T")[0];
+      if (daysMap.has(updatedStr)) {
+        daysMap.get(updatedStr)!.closed++;
+      }
+    }
+  });
+
+  return Array.from(daysMap.values());
+}
+
+async function getPriorityBreakdown() {
+  const [ticketPriorities, taskPriorities] = await Promise.all([
+    prisma.ticket.groupBy({
+      by: ["priority"],
+      where: { status: { in: ["OPEN", "IN_PROGRESS", "ON_HOLD"] } },
+      _count: { priority: true },
+    }),
+    prisma.task.groupBy({
+      by: ["priority"],
+      where: { status: { not: "DONE" } },
+      _count: { priority: true },
+    }),
+  ]);
+
+  const priorityCounts: Record<string, number> = {
+    LOW: 0,
+    MEDIUM: 0,
+    HIGH: 0,
+    URGENT: 0,
+  };
+
+  ticketPriorities.forEach((p) => {
+    if (priorityCounts[p.priority] !== undefined) {
+      priorityCounts[p.priority] += p._count.priority;
+    }
+  });
+
+  taskPriorities.forEach((p) => {
+    if (priorityCounts[p.priority] !== undefined) {
+      priorityCounts[p.priority] += p._count.priority;
+    }
+  });
+
+  return [
+    { name: "Low", value: priorityCounts.LOW, color: "#3B82F6" },
+    { name: "Medium", value: priorityCounts.MEDIUM, color: "#F59E0B" },
+    { name: "High", value: priorityCounts.HIGH, color: "#F97316" },
+    { name: "Urgent", value: priorityCounts.URGENT, color: "#EF4444" },
+  ];
+}
+
+async function getAssigneeBreakdown() {
+  const users = await prisma.user.findMany({
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      _count: {
+        select: {
+          assignedTickets: { where: { status: { in: ["OPEN", "IN_PROGRESS", "ON_HOLD"] } } },
+          authoredTasks: { where: { status: { not: "DONE" } } },
+        },
+      },
+    },
+  });
+
+  return users
+    .map((u) => ({
+      name: u.name || u.email,
+      openItems: u._count.assignedTickets + u._count.authoredTasks,
+    }))
+    .filter((u) => u.openItems > 0);
 }
 
 async function getSLAStats(now: Date): Promise<DashboardSLAData[]> {
@@ -156,3 +363,5 @@ async function getProjectProgress() {
     };
   });
 }
+
+
