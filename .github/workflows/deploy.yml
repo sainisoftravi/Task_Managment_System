@@ -7,8 +7,7 @@ on:
 
 jobs:
   deploy:
-
-    runs-on: [self-hosted, Linux, X64, deploy-to-saudi-secondary-server]
+    runs-on: [self-hosted, Linux, X64]
 
     steps:
 
@@ -20,9 +19,9 @@ jobs:
           docker --version
           docker compose version
 
-      - name: Stop existing containers
+      - name: Check current containers
         run: |
-          docker compose down
+          docker compose ps
 
       - name: Build Docker images
         run: |
@@ -32,15 +31,14 @@ jobs:
         run: |
           docker compose up -d
 
-      - name: Wait for containers to be healthy
+      - name: Wait for containers
         run: |
           sleep 10
-          docker compose ps
 
       - name: Check deployment
         run: |
           docker compose ps
 
-      - name: Verify app is running
+      - name: Verify application
         run: |
-          curl -f http://localhost:3000/api/health || echo "Health check skipped - endpoint may not exist yet"
+          curl -f http://localhost:3000/api/health
