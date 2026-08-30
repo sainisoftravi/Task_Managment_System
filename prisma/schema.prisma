@@ -1,0 +1,390 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  name      String?
+  password  String?
+  role      String     @default("AGENT")
+  teamId    String?
+  team      Team?      @relation(fields: [teamId], references: [id])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  lastSeen  DateTime?
+  avatar    String?
+
+  assignedTickets  Ticket[]          @relation("AssignedTickets")
+  authoredTickets  Ticket[]          @relation("AuthorTickets")
+  authoredComments TicketComment[]
+  authoredTasks    Task[]            @relation("AssignedTasks")
+  authoredTimeLogs TimeLog[]
+  authoredKB       KnowledgeBaseArticle[]
+  createdProjects  Project[]         @relation("ProjectOwners")
+  memberships      ProjectMember[]
+  notifications    Notification[]
+  activities       Activity[]
+  slaPolicies     SlaPolicy[]
+
+  @@index([teamId])
+  @@index([role])
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  users    User[]
+  projects Project[]
+  tickets  Ticket[]
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?  @unique
+  company   String?
+  phone     String?
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tickets Ticket[]
+}
+
+model SlaPolicy {
+  id                String         @id @default(cuid())
+  name              String
+  priority          String         @default("MEDIUM")
+  responseTimeMinutes  Int
+  resolutionTimeMinutes  Int
+  active            Boolean        @default(true)
+  escalations       SlaEscalation[]
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  ownerId String?
+  owner   User?     @relation(fields: [ownerId], references: [id])
+
+  @@index([priority])
+  @@index([active])
+}
+
+model SlaEscalation {
+  id           String   @id @default(cuid())
+  slaPolicyId  String
+  slaPolicy    SlaPolicy @relation(fields: [slaPolicyId], references: [id])
+  afterMinutes Int
+  action       String
+  targetRoleId String?
+  targetTeamId String?
+  createdAt    DateTime @default(now())
+
+  @@index([slaPolicyId])
+  @@index([targetRoleId])
+  @@index([targetTeamId])
+}
+
+model KnowledgeBaseArticle {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  content     String
+  summary     String?
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+  published   Boolean  @default(false)
+  helpfulCount Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tags        String   @default("[]")
+
+  ticketLinks TicketKbArticle[]
+
+  @@index([authorId])
+  @@index([published])
+  @@index([slug])
+}
+
+model Ticket {
+  id               String        @id @default(cuid())
+  title            String
+  description      String
+  priority         String        @default("MEDIUM")
+  status           String        @default("OPEN")
+  category         String?
+  source           String        @default("WEB")
+  slaBreached      Boolean        @default(false)
+  slaDueAt         DateTime?
+  resolvedAt       DateTime?
+  closedAt         DateTime?
+  customerId       String?
+  customer         Customer?      @relation(fields: [customerId], references: [id])
+  assigneeId       String?
+  assignee         User?          @relation("AssignedTickets", fields: [assigneeId], references: [id])
+  authorId         String
+  author           User           @relation("AuthorTickets", fields: [authorId], references: [id])
+  teamId           String?
+  team             Team?          @relation(fields: [teamId], references: [id])
+
+  projectId        String?
+  project          Project?       @relation(fields: [projectId], references: [id])
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  dueDate          DateTime?
+
+  comments         TicketComment[]
+  timeLogs         TimeLog[]
+  kbArticles       TicketKbArticle[]
+  notifications    Notification[]
+  activities       Activity[]
+  convertedTaskId  String?   @unique
+  convertedTask    Task?     @relation("TicketToTask", fields: [convertedTaskId], references: [id])
+
+  @@index([status])
+  @@index([priority])
+  @@index([assigneeId])
+  @@index([customerId])
+  @@index([teamId])
+  @@index([category])
+  @@index([slaDueAt])
+  @@index([createdAt])
+}
+
+model TicketComment {
+  id        String     @id @default(cuid())
+  ticketId  String
+  ticket    Ticket     @relation(fields: [ticketId], references: [id])
+  authorId  String
+  author    User       @relation(fields: [authorId], references: [id])
+  content   String
+  type      String     @default("PUBLIC")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([ticketId])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model TicketKbArticle {
+  ticketId  String
+  ticket    Ticket @relation(fields: [ticketId], references: [id])
+  articleId String
+  article   KnowledgeBaseArticle @relation(fields: [articleId], references: [id])
+
+  @@id([ticketId, articleId])
+  @@index([articleId])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  key         String   @unique
+  description String?
+  status      String   @default("ACTIVE")
+  startDate   DateTime
+  dueDate     DateTime?
+  ownerId     String?
+  owner       User?    @relation("ProjectOwners", fields: [ownerId], references: [id])
+  teamId      String?
+  team        Team?    @relation(fields: [teamId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  milestones  Milestone[]
+  taskLists   TaskList[]
+  tasks       Task[]
+  members     ProjectMember[]
+  tickets     Ticket[]
+  timeLogs    TimeLog[]
+  activities  Activity[]
+  notifications Notification[]
+
+  @@index([ownerId])
+  @@index([teamId])
+  @@index([status])
+  @@index([key])
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  role      String   @default("MEMBER")
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+model Milestone {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  name        String
+  description String?
+  dueDate     DateTime
+  completed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  taskLists TaskList[]
+
+  @@index([projectId])
+  @@index([dueDate])
+}
+
+model TaskList {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  milestoneId String?
+  milestone   Milestone? @relation(fields: [milestoneId], references: [id])
+  name        String
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  tasks Task[]
+
+  @@index([projectId])
+  @@index([milestoneId])
+}
+
+model Task {
+  id                  String      @id @default(cuid())
+  projectId           String
+  project             Project     @relation(fields: [projectId], references: [id])
+  title               String
+  description         String?
+  status              String     @default("TODO")
+  priority            String     @default("MEDIUM")
+  assigneeId          String?
+  assignee            User?       @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  taskListId          String
+  taskList            TaskList    @relation(fields: [taskListId], references: [id])
+  parentTaskId        String?     @unique
+  parentTask          Task?       @relation("TaskSubtasks", fields: [parentTaskId], references: [id])
+  estimatedHours      Float?
+  loggedHours         Float?
+  dueDate             DateTime?
+  startDate           DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  subtasks             Task[]             @relation("TaskSubtasks")
+  dependencies         TaskDependency[]   @relation("TaskDependencies")
+  dependents           TaskDependency[]   @relation("DependentTasks")
+  timeLogs             TimeLog[]
+  activities           Activity[]
+  notifications        Notification[]
+
+  convertedFromTicketId String?
+  convertedFromTicket   Ticket? @relation("TicketToTask")
+
+  @@index([projectId])
+  @@index([assigneeId])
+  @@index([parentTaskId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([taskListId])
+}
+
+model TaskDependency {
+  id              String   @id @default(cuid())
+  taskId          String
+  task            Task     @relation("TaskDependencies", fields: [taskId], references: [id])
+  dependsOnTaskId String
+  dependsOn       Task     @relation("DependentTasks", fields: [dependsOnTaskId], references: [id])
+  type            String   @default("FINISH_TO_START")
+  createdAt       DateTime @default(now())
+
+  @@unique([taskId, dependsOnTaskId])
+  @@index([dependsOnTaskId])
+}
+
+model TimeLog {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  taskId        String?  @unique
+  task          Task?    @relation(fields: [taskId], references: [id])
+  ticketId      String?
+  ticket        Ticket?  @relation(fields: [ticketId], references: [id])
+  projectId     String?
+  project       Project? @relation(fields: [projectId], references: [id])
+  durationMinutes  Int
+  billableType  String   @default("BILLABLE")
+  description   String?
+  logDate       DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([taskId])
+  @@index([ticketId])
+  @@index([projectId])
+  @@index([logDate])
+  @@index([billableType])
+}
+
+model Notification {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  type        String
+  title       String
+  message     String
+  read        Boolean       @default(false)
+  entityId    String?
+  entityType  String?
+  createdAt   DateTime      @default(now())
+
+  ticketId String?
+  ticket   Ticket? @relation(fields: [ticketId], references: [id])
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+  taskId String?
+  task   Task? @relation(fields: [taskId], references: [id])
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+  @@index([ticketId])
+  @@index([projectId])
+  @@index([taskId])
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  entityId    String?
+  entityType  String?
+  action      String
+  details     String?
+  createdAt   DateTime @default(now())
+
+  ticketId String?
+  ticket   Ticket? @relation(fields: [ticketId], references: [id])
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+  taskId String?
+  task   Task? @relation(fields: [taskId], references: [id])
+
+  @@index([userId])
+  @@index([entityId, entityType])
+  @@index([ticketId])
+  @@index([taskId])
+  @@index([projectId])
+  @@index([createdAt])
+}
