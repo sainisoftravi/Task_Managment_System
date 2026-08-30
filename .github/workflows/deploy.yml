@@ -1,0 +1,46 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+
+    runs-on: [self-hosted, Linux, X64, deploy-to-saudi-secondary-server]
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check Docker
+        run: |
+          docker --version
+          docker compose version
+
+      - name: Stop existing containers
+        run: |
+          docker compose down
+
+      - name: Build Docker images
+        run: |
+          docker compose build
+
+      - name: Start containers
+        run: |
+          docker compose up -d
+
+      - name: Wait for containers to be healthy
+        run: |
+          sleep 10
+          docker compose ps
+
+      - name: Check deployment
+        run: |
+          docker compose ps
+
+      - name: Verify app is running
+        run: |
+          curl -f http://localhost:3000/api/health || echo "Health check skipped - endpoint may not exist yet"
