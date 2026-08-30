@@ -1,19 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Task, TaskDependency, TimeLog, User, Project } from "@/types";
 import { colorForPriority, colorForStatus, formatDate, formatDateTime, formatDuration } from "@/lib/utils";
 import { getAuthHeaders } from "@/lib/utils";
 import { ArrowLeft, Calendar, Clock, UserIcon, Flag, Save, Plus, Trash2, Link2, CheckCircle } from "lucide-react";
 import Link from "next/link";
 
-interface TaskDetailProps {
-  params: { id: string; taskId: string };
-}
-
-export default function TaskDetailPage({ params }: TaskDetailProps) {
-  const { id, taskId } = params;
+export default function TaskDetailPage() {
+   const params = useParams<{ id: string; taskId: string }>();
+   const { id, taskId } = params;
   const router = useRouter();
   const [task, setTask] = useState<Task | null>(null);
   const [dependencies, setDependencies] = useState<TaskDependency[]>([]);
