@@ -64,6 +64,13 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     fetchProjects();
+    const handleSync = () => fetchProjects();
+    window.addEventListener("focus", handleSync);
+    window.addEventListener("storage", handleSync);
+    return () => {
+      window.removeEventListener("focus", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
   }, []);
 
   async function fetchProjects() {
@@ -233,8 +240,11 @@ export default function ProjectsPage() {
   }
 
   const filtered = projects.filter((p) => {
+    if (!p) return false;
     const matchesTab = activeTab === "ACTIVE" ? p.status !== "ARCHIVED" : p.status === "ARCHIVED";
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.key.toLowerCase().includes(search.toLowerCase());
+    const nameMatch = (p.name || "").toLowerCase().includes(search.toLowerCase());
+    const keyMatch = (p.key || "").toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = nameMatch || keyMatch;
     return matchesTab && matchesSearch;
   });
 
