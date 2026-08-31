@@ -278,9 +278,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <Bell className="h-5 w-5" />
               <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500" />
             </button>
-            <button className="rounded-md p-2 text-slate-500 hover:bg-slate-100 cursor-pointer">
+            <Link href="/settings" className="rounded-md p-2 text-slate-500 hover:bg-slate-100 cursor-pointer" title="Setup & Settings">
               <Settings className="h-5 w-5" />
-            </button>
+            </Link>
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-full bg-[#0070BA] text-white flex items-center justify-center font-bold text-xs">
                 {user?.name?.[0] || user?.email?.[0] || "R"}
