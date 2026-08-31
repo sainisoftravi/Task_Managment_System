@@ -28,12 +28,22 @@ interface DashboardData {
   assigneeBreakdown: Array<{ name: string; openItems: number }>;
 }
 
+import { Plus, LayoutGrid, BarChart2, Hash, Link as LinkIcon, Share2, Copy } from "lucide-react";
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [trendDays, setTrendDays] = useState(30);
   const [isExportOpen, setIsExportOpen] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<"personal" | "portfolio" | "custom">("portfolio");
+  const [showCreateDashboardModal, setShowCreateDashboardModal] = useState(false);
+  const [showAddWidgetModal, setShowAddWidgetModal] = useState(false);
+  const [dashboardTitle, setDashboardTitle] = useState("");
+  const [widgetName, setWidgetName] = useState("");
+  const [widgetType, setWidgetType] = useState<"chart" | "kpi" | "embed">("chart");
+  const [embedUrl, setEmbedUrl] = useState("");
 
   const fetchDashboard = useCallback(async (days = trendDays) => {
     setLoading(true);
@@ -59,32 +69,79 @@ export default function DashboardPage() {
 
   if (loading && !data) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+      <div className="flex items-center justify-center py-20 font-sans">
+        <Loader2 className="h-8 w-8 animate-spin text-[#0070BA]" />
       </div>
     );
   }
 
   if (!data) {
-    return <div className="text-center py-12 text-slate-500">Failed to load dashboard data</div>;
+    return <div className="text-center py-12 text-slate-500 font-sans">Failed to load dashboard data</div>;
   }
 
   const { overallMetrics, trendData, priorityBreakdown, assigneeBreakdown } = data;
 
   return (
-    <div className="space-y-6">
-      {/* Header & Export Modal Trigger */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-6 font-sans">
+      {/* Top Portal Home Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 bg-white p-4 -m-6 mb-2 shadow-xs">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Operational Dashboard</h1>
-          <p className="text-sm text-slate-500">Welcome back, {user?.name || user?.email}</p>
+          <h1 className="text-xl font-bold text-slate-900">Portal Home Dashboard</h1>
+          <p className="text-xs text-slate-500">Welcome back, {user?.name || user?.email}</p>
         </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowAddWidgetModal(true)}
+            className="inline-flex items-center gap-1.5 rounded border border-[#0070BA]/30 bg-blue-50/50 px-3 py-1.5 text-xs font-semibold text-[#0070BA] hover:bg-blue-100/50 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Widget</span>
+          </button>
+
+          <button
+            onClick={() => setShowCreateDashboardModal(true)}
+            className="inline-flex items-center gap-1.5 rounded bg-[#0070BA] px-3.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700 shadow-xs transition-colors"
+          >
+            <LayoutGrid className="h-4 w-4" />
+            <span>Create Custom Dashboard</span>
+          </button>
+
+          <button
+            onClick={() => setIsExportOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            <Download className="h-4 w-4" />
+            <span>Export (PDF/XLSX)</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Dashboard Type View Switcher Tabs */}
+      <div className="flex items-center gap-6 border-b border-slate-200 text-xs font-semibold pt-2">
         <button
-          onClick={() => setIsExportOpen(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 transition-colors"
+          onClick={() => setActiveTab("portfolio")}
+          className={`pb-2.5 transition-colors border-b-2 ${
+            activeTab === "portfolio" ? "border-[#0070BA] text-[#0070BA]" : "border-transparent text-slate-600 hover:text-slate-900"
+          }`}
         >
-          <Download className="h-4 w-4" />
-          Export Reports (XLSX / PDF)
+          Portfolio Overview
+        </button>
+        <button
+          onClick={() => setActiveTab("personal")}
+          className={`pb-2.5 transition-colors border-b-2 ${
+            activeTab === "personal" ? "border-[#0070BA] text-[#0070BA]" : "border-transparent text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          Personal Work Items
+        </button>
+        <button
+          onClick={() => setActiveTab("custom")}
+          className={`pb-2.5 transition-colors border-b-2 ${
+            activeTab === "custom" ? "border-[#0070BA] text-[#0070BA]" : "border-transparent text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          Custom Dashboards
         </button>
       </div>
 

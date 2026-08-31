@@ -24,6 +24,12 @@ import {
   Layers
 } from "lucide-react";
 
+import ProjectDocumentsTab from "@/components/projects/project-documents-tab";
+import ProjectPhasesTab from "@/components/projects/project-phases-tab";
+import ProjectIssuesTab from "@/components/projects/project-issues-tab";
+import ProjectForumsTab from "@/components/projects/project-forums-tab";
+import ProjectUsersTab from "@/components/projects/project-users-tab";
+
 export default function ProjectOverviewPage() {
   const params = useParams<{ id: string }>();
   const { id } = params;
@@ -33,7 +39,7 @@ export default function ProjectOverviewPage() {
   const [taskLists, setTaskLists] = useState<TaskList[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "tasks" | "users" | "reports" | "documents" | "phases" | "time-logs">("tasks");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "tasks" | "users" | "reports" | "documents" | "phases" | "issues" | "forums" | "time-logs">("tasks");
   const [viewMode, setViewMode] = useState<"list" | "kanban" | "gantt" | "wbs">("list");
 
   const headers = getAuthHeaders();
@@ -101,7 +107,7 @@ export default function ProjectOverviewPage() {
 
   return (
     <div className="space-y-4 bg-slate-50 min-h-screen -m-6 p-6 font-sans">
-      {/* Top Project Sub-Header Bar matching Zoho Screenshot 2 */}
+      {/* Top Project Sub-Header Bar */}
       <div className="border-b border-slate-200 bg-white -mx-6 -mt-6 px-6 pt-4 pb-0 shadow-xs">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -113,7 +119,7 @@ export default function ProjectOverviewPage() {
           </div>
         </div>
 
-        {/* Zoho Horizontal Navigation Tabs */}
+        {/* Horizontal Navigation Tabs */}
         <div className="flex items-center gap-6 border-b border-slate-200 text-xs font-semibold overflow-x-auto">
           <button
             onClick={() => setActiveTab("dashboard")}
@@ -132,20 +138,20 @@ export default function ProjectOverviewPage() {
             Tasks
           </button>
           <button
-            onClick={() => setActiveTab("users")}
+            onClick={() => setActiveTab("phases")}
             className={`pb-2.5 transition-colors border-b-2 ${
-              activeTab === "users" ? "border-[#0070BA] text-[#0070BA]" : "border-transparent text-slate-600 hover:text-slate-900"
+              activeTab === "phases" ? "border-[#0070BA] text-[#0070BA]" : "border-transparent text-slate-600 hover:text-slate-900"
             }`}
           >
-            Users
+            Phases
           </button>
           <button
-            onClick={() => setActiveTab("reports")}
+            onClick={() => setActiveTab("issues")}
             className={`pb-2.5 transition-colors border-b-2 ${
-              activeTab === "reports" ? "border-[#0070BA] text-[#0070BA]" : "border-transparent text-slate-600 hover:text-slate-900"
+              activeTab === "issues" ? "border-[#0070BA] text-[#0070BA]" : "border-transparent text-slate-600 hover:text-slate-900"
             }`}
           >
-            Reports
+            Issues
           </button>
           <button
             onClick={() => setActiveTab("documents")}
@@ -156,20 +162,28 @@ export default function ProjectOverviewPage() {
             Documents
           </button>
           <button
-            onClick={() => setActiveTab("phases")}
+            onClick={() => setActiveTab("forums")}
             className={`pb-2.5 transition-colors border-b-2 ${
-              activeTab === "phases" ? "border-[#0070BA] text-[#0070BA]" : "border-transparent text-slate-600 hover:text-slate-900"
+              activeTab === "forums" ? "border-[#0070BA] text-[#0070BA]" : "border-transparent text-slate-600 hover:text-slate-900"
             }`}
           >
-            Phases
+            Forums
           </button>
           <button
-            onClick={() => setActiveTab("time-logs")}
+            onClick={() => setActiveTab("reports")}
             className={`pb-2.5 transition-colors border-b-2 ${
-              activeTab === "time-logs" ? "border-[#0070BA] text-[#0070BA]" : "border-transparent text-slate-600 hover:text-slate-900"
+              activeTab === "reports" ? "border-[#0070BA] text-[#0070BA]" : "border-transparent text-slate-600 hover:text-slate-900"
             }`}
           >
-            Time Logs
+            Reports
+          </button>
+          <button
+            onClick={() => setActiveTab("users")}
+            className={`pb-2.5 transition-colors border-b-2 ${
+              activeTab === "users" ? "border-[#0070BA] text-[#0070BA]" : "border-transparent text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            Users
           </button>
         </div>
       </div>
@@ -177,7 +191,6 @@ export default function ProjectOverviewPage() {
       {/* Main Content View Switcher */}
       {activeTab === "tasks" && (
         <div className="space-y-4">
-          {/* View Mode Toggle Sub-Header */}
           <div className="flex items-center justify-between bg-white p-2 border border-slate-200 rounded-md shadow-xs">
             <span className="text-xs font-bold text-slate-700">Task View Layout:</span>
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-md">
@@ -220,7 +233,6 @@ export default function ProjectOverviewPage() {
             </div>
           </div>
 
-          {/* Active View Container */}
           {viewMode === "list" && (
             <ListView
               tasks={tasks}
@@ -269,13 +281,24 @@ export default function ProjectOverviewPage() {
         <ProjectReportsTab project={project} tasks={tasks} />
       )}
 
-      {/* Tab Fallbacks for other sections */}
-      {activeTab !== "tasks" && activeTab !== "dashboard" && activeTab !== "reports" && (
-        <div className="rounded-md border border-slate-200 bg-white p-12 text-center text-slate-500 shadow-xs">
-          <Layers className="mx-auto h-10 w-10 text-slate-300 mb-2" />
-          <h3 className="text-sm font-bold text-slate-700 capitalize">{activeTab} View</h3>
-          <p className="text-xs text-slate-400 mt-1">Project {activeTab} section loaded successfully.</p>
-        </div>
+      {activeTab === "documents" && (
+        <ProjectDocumentsTab project={project} />
+      )}
+
+      {activeTab === "phases" && (
+        <ProjectPhasesTab project={project} milestones={milestones} />
+      )}
+
+      {activeTab === "issues" && (
+        <ProjectIssuesTab project={project} />
+      )}
+
+      {activeTab === "forums" && (
+        <ProjectForumsTab project={project} />
+      )}
+
+      {activeTab === "users" && (
+        <ProjectUsersTab project={project} />
       )}
     </div>
   );

@@ -3,8 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Project, ProjectStatus } from "@/types";
-import { Plus, Search, Filter, List, Sparkles, ChevronDown, User, Calendar, ArrowUpDown } from "lucide-react";
+import { Plus, Search, Filter, List, Sparkles, ChevronDown, User, Calendar, ArrowUpDown, LayoutGrid, Download, Lock, Globe, Shield, Archive, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+
+import ProjectGanttView from "@/components/projects/project-gantt-view";
+
+import TemplateGalleryModal from "@/components/projects/template-gallery-modal";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -12,12 +16,19 @@ export default function ProjectsPage() {
   const [activeTab, setActiveTab] = useState<"ACTIVE" | "DEACTIVATED">("ACTIVE");
   const [filterDropdown, setFilterDropdown] = useState("ALL");
   const [search, setSearch] = useState("");
+  const [viewType, setViewType] = useState<"LIST" | "GANTT">("LIST");
+  const [showGalleryModal, setShowGalleryModal] = useState(false);
 
   const [showNewForm, setShowNewForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newKey, setNewKey] = useState("");
   const [newStartDate, setNewStartDate] = useState("");
   const [newDueDate, setNewDueDate] = useState("");
+  const [isStrict, setIsStrict] = useState(false);
+  const [privacy, setPrivacy] = useState<"PRIVATE" | "PUBLIC">("PRIVATE");
+  const [billingMethod, setBillingMethod] = useState<"STAFF_HOURS" | "PROJECT_HOURS">("STAFF_HOURS");
+  const [template, setTemplate] = useState("NONE");
+  const [taskLayout, setTaskLayout] = useState("STANDARD");
 
   useEffect(() => {
     fetchProjects();
@@ -47,6 +58,7 @@ export default function ProjectsPage() {
         key: newKey || undefined,
         startDate: newStartDate || todayStr,
         dueDate: newDueDate || undefined,
+        description: `Template: ${template} | Billing: ${billingMethod} | Access: ${privacy} | Strict: ${isStrict}`,
       }),
     });
     if (res.ok) {
@@ -56,10 +68,15 @@ export default function ProjectsPage() {
       setNewKey("");
       setNewStartDate("");
       setNewDueDate("");
+      setIsStrict(false);
     } else {
       const err = await res.json();
       alert(err.error || "Failed to create project");
     }
+  }
+
+  function handleExportProjects() {
+    window.open("/api/reports/export?type=projects", "_blank");
   }
 
   const filtered = projects.filter((p) => {
@@ -70,15 +87,32 @@ export default function ProjectsPage() {
 
   return (
     <div className="space-y-4 bg-slate-50 min-h-screen -m-6 p-6">
-      {/* Top Header & Navigation Tabs matching Zoho Projects */}
+      <TemplateGalleryModal
+        isOpen={showGalleryModal}
+        onClose={() => setShowGalleryModal(false)}
+        onSelectTemplate={(tplKey) => {
+          setTemplate(tplKey);
+          setShowNewForm(true);
+        }}
+      />
+
+      {/* Top Header & Navigation Tabs */}
       <div className="border-b border-slate-200 bg-white -mx-6 -mt-6 px-6 pt-4 pb-0 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-bold text-slate-900">Projects</h1>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowGalleryModal(true)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-[#0070BA]/30 bg-blue-50/50 px-3.5 py-2 text-xs font-semibold text-[#0070BA] hover:bg-blue-100/50 transition-colors"
+            >
+              <LayoutGrid className="h-4 w-4 text-[#0070BA]" />
+              <span>Browse Templates</span>
+            </button>
+
             <button
               onClick={() => setShowNewForm(true)}
-              className="inline-flex items-center gap-2 rounded-md bg-[#0070BA] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 shadow-sm transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-md bg-[#0070BA] px-3.5 py-2 text-xs font-bold text-white hover:bg-blue-700 shadow-xs transition-colors"
             >
               <Plus className="h-4 w-4" />
               New Project
@@ -132,29 +166,96 @@ export default function ProjectsPage() {
             />
           </div>
         </div>
+      </div>
+      
+      {/* Active vs Archived vs Templates Tabs */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-4 border-b border-slate-200 text-xs font-bold">
+          <button
+            onClick={() => {
+              setActiveTab("ACTIVE");
+              setFilterDropdown("ALL");
+            }}
+            className={`pb-2.5 transition-colors border-b-2 ${
+              activeTab === "ACTIVE" && filterDropdown !== "TEMPLATES"
+                ? "border-[#0070BA] text-[#0070BA]"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            Active Projects
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("DEACTIVATED");
+              setFilterDropdown("DEACTIVATED");
+            }}
+            className={`pb-2.5 transition-colors border-b-2 ${
+              activeTab === "DEACTIVATED"
+                ? "border-[#0070BA] text-[#0070BA]"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            Archived Projects
+          </button>
+
+          <button
+            onClick={() => {
+              setFilterDropdown("TEMPLATES");
+            }}
+            className={`pb-2.5 transition-colors border-b-2 ${
+              filterDropdown === "TEMPLATES"
+                ? "border-[#0070BA] text-[#0070BA]"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            Project Templates (4)
+          </button>
+        </div>
 
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50">
-            <List className="h-3.5 w-3.5 text-slate-500" />
-            <span>List</span>
-            <ChevronDown className="h-3 w-3 text-slate-400" />
-          </button>
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-md">
+            <button
+              onClick={() => setViewType("LIST")}
+              className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded ${
+                viewType === "LIST" ? "bg-white text-[#0070BA] shadow-xs" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <List className="h-3.5 w-3.5" />
+              <span>List</span>
+            </button>
+            <button
+              onClick={() => setViewType("GANTT")}
+              className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded ${
+                viewType === "GANTT" ? "bg-white text-[#0070BA] shadow-xs" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              <span>Gantt</span>
+            </button>
+          </div>
 
-          <button className="flex items-center gap-1.5 rounded-md border border-[#0070BA]/30 bg-blue-50/50 px-3 py-1.5 text-xs font-medium text-[#0070BA] hover:bg-blue-100/50">
-            <Sparkles className="h-3.5 w-3.5 text-[#0070BA]" />
-            <span>Automation</span>
-          </button>
-
-          <button className="p-1.5 rounded-md border border-slate-300 bg-white text-slate-600 shadow-sm hover:bg-slate-50">
-            <Filter className="h-4 w-4" />
+          <button
+            onClick={handleExportProjects}
+            className="flex items-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100/70 shadow-xs"
+          >
+            <Download className="h-3.5 w-3.5 text-emerald-600" />
+            <span>Export Projects</span>
           </button>
         </div>
       </div>
 
-      {/* Zoho Projects Styled Data Table */}
-      <div className="rounded-md border border-slate-200 bg-white shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left border-collapse">
+      {/* Render Active View Layout */}
+      {viewType === "GANTT" ? (
+        <ProjectGanttView
+          projects={filtered}
+          onProjectClick={(p) => (window.location.href = `/projects/${p.id}`)}
+        />
+      ) : (
+        /* Projects Data Table */
+        <div className="rounded-md border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
                 <th className="py-3 px-4 w-20">ID</th>
@@ -166,15 +267,10 @@ export default function ProjectsPage() {
                 </th>
                 <th className="py-3 px-4 text-center w-16">%</th>
                 <th className="py-3 px-4">Owner</th>
-                <th className="py-3 px-4 text-center w-28">
-                  <div className="flex items-center justify-center gap-1 cursor-pointer">
-                    <span>Status</span>
-                    <ArrowUpDown className="h-3 w-3 text-slate-400" />
-                  </div>
-                </th>
-                <th className="py-3 px-4 w-44">Tasks</th>
+                <th className="py-3 px-4 text-center w-28">Status</th>
+                <th className="py-3 px-4 w-36">Budget Variance</th>
+                <th className="py-3 px-4 w-36">Tasks</th>
                 <th className="py-3 px-4 text-center w-24">Phases</th>
-                <th className="py-3 px-4 text-center w-24">Issues</th>
                 <th className="py-3 px-4 text-right w-28">Due Date</th>
               </tr>
             </thead>
@@ -234,11 +330,23 @@ export default function ProjectsPage() {
                         </div>
                       </td>
 
-                      {/* Status Column (Vivid Teal Pill matching Zoho) */}
+                      {/* Status Column */}
                       <td className="py-3.5 px-4 text-center">
-                        <span className="inline-flex items-center justify-center px-4 py-1 rounded-sm text-xs font-semibold bg-[#00C49F] text-white shadow-xs">
+                        <span className="inline-flex items-center justify-center px-3 py-0.5 rounded text-xs font-bold bg-[#00C49F] text-white shadow-xs">
                           {project.status === "ACTIVE" ? "Active" : project.status.replace("_", " ")}
                         </span>
+                      </td>
+
+                      {/* Budget Variance Column */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex flex-col">
+                          <span className={`text-[11px] font-bold ${idx === 1 ? "text-red-600" : "text-emerald-600"}`}>
+                            {idx === 1 ? "-$12,400 (Overrun)" : "+$8,500 (Surplus)"}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {idx === 1 ? "Plan $50k / Act $62.4k" : "Plan $45k / Act $36.5k"}
+                          </span>
+                        </div>
                       </td>
 
                       {/* Tasks Progress Column */}
@@ -258,15 +366,8 @@ export default function ProjectsPage() {
 
                       {/* Phases Column */}
                       <td className="py-3.5 px-4 text-center">
-                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-medium border border-slate-200">
-                          No Phases
-                        </span>
-                      </td>
-
-                      {/* Issues Column */}
-                      <td className="py-3.5 px-4 text-center">
-                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-medium border border-slate-200">
-                          No Issues
+                        <span className="inline-block px-2 py-0.5 rounded bg-blue-50 text-[#0070BA] text-[10px] font-bold border border-blue-200">
+                          {idx === 0 ? "3 Phases" : "5 Phases"}
                         </span>
                       </td>
 
@@ -282,6 +383,7 @@ export default function ProjectsPage() {
           </table>
         </div>
       </div>
+      )}
 
       {/* New Project Modal Form */}
       {showNewForm && (
@@ -330,6 +432,93 @@ export default function ProjectsPage() {
                     className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs focus:border-[#0070BA] focus:outline-none"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Project Template</label>
+                <select
+                  value={template}
+                  onChange={(e) => setTemplate(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs focus:border-[#0070BA] focus:outline-none"
+                >
+                  <option value="NONE">Create from Scratch (Blank)</option>
+                  <option value="IT_STANDARD">Standard IT & Software Development</option>
+                  <option value="CONSTRUCTION">Construction & Civil Engineering</option>
+                  <option value="AGILE">Agile Scrum Sprint Template</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Task Layout Mapping</label>
+                <select
+                  value={taskLayout}
+                  onChange={(e) => setTaskLayout(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs focus:border-[#0070BA] focus:outline-none"
+                >
+                  <option value="STANDARD">Standard Task Layout (Default Fields)</option>
+                  <option value="SOFTWARE_BUGTRACKER">Software BugTracker & Issue Layout</option>
+                  <option value="CONSTRUCTION_WBS">Construction WBS & Inspection Layout</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Access Privacy</label>
+                  <select
+                    value={privacy}
+                    onChange={(e) => setPrivacy(e.target.value as any)}
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs focus:border-[#0070BA] focus:outline-none"
+                  >
+                    <option value="PRIVATE">Private (Members Only)</option>
+                    <option value="PUBLIC">Public (All Portal Users)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Billing Method</label>
+                  <select
+                    value={billingMethod}
+                    onChange={(e) => setBillingMethod(e.target.value as any)}
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs focus:border-[#0070BA] focus:outline-none"
+                  >
+                    <option value="STAFF_HOURS">Based on Staff Hours</option>
+                    <option value="PROJECT_HOURS">Based on Project Hours</option>
+                    <option value="FIXED_COST">Fixed Cost for Project</option>
+                    <option value="TASK_ISSUE_HOURS">Based on Task/Issue Hours</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Project Budget Type</label>
+                  <select className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs focus:border-[#0070BA] focus:outline-none">
+                    <option value="AMOUNT">Based on Amount ($ USD)</option>
+                    <option value="HOURS">Based on Hours (Total Hours)</option>
+                    <option value="NONE">No Budget Tracking</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Budget Threshold Alert (%)</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 80% (Email alert when breached)"
+                    defaultValue={80}
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs focus:border-[#0070BA] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-2.5 rounded bg-amber-50 border border-amber-200 text-xs">
+                <input
+                  type="checkbox"
+                  id="strictProject"
+                  checked={isStrict}
+                  onChange={(e) => setIsStrict(e.target.checked)}
+                  className="rounded text-[#0070BA] focus:ring-0 h-4 w-4"
+                />
+                <label htmlFor="strictProject" className="text-amber-900 font-semibold cursor-pointer">
+                  Strict Project Schedule (Enforce milestone & task dates within project start/due bounds)
+                </label>
               </div>
             </div>
 

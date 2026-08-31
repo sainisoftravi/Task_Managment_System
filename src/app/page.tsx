@@ -115,7 +115,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="text-base sm:text-lg text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed font-normal">
-            Inspired by Zoho Desk & Zoho Projects. Seamlessly ingest support tickets, calculate SLA metrics, convert customer issues into actionable engineering tasks with 2-way sync, and export rich Excel & PDF reports.
+            Unified Ticket & Project Management Operations. Seamlessly ingest support tickets, calculate SLA metrics, convert customer issues into actionable engineering tasks with 2-way sync, and export rich Excel & PDF reports.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-30">

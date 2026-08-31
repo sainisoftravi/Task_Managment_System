@@ -110,7 +110,23 @@ export default function GanttChart({ tasks, dependencies, onTaskClick, startDate
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4 text-xs font-semibold text-slate-600">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#0070BA]" />
+            <span>Finish to Start (FS)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-purple-600" />
+            <span>Start to Start (SS)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-600" />
+            <span>Finish to Finish (FF)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-amber-600" />
+            <span>Start to Finish (SF)</span>
+          </div>
           <button onClick={() => setScale(Math.max(10, scale - 2))} className="rounded-md border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100">
             <ZoomOut className="h-4 w-4" />
           </button>

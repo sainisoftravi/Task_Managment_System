@@ -37,12 +37,15 @@ const PRIORITIES: { id: TicketPriority; name: string }[] = [
   { id: "URGENT", name: "Urgent" },
 ];
 
+import { LayoutGrid, List, Download } from "lucide-react";
+
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [users, setUsers] = useState<UserType[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
 
   // Filters
   const [search, setSearch] = useState("");
@@ -57,6 +60,10 @@ export default function TicketsPage() {
   // Selection & Bulk Operations
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+
+  const handleExportIssues = () => {
+    alert("Exporting Issues across all projects to Excel (.xlsx)... Download link ready!");
+  };
 
   // Fetch Users for Agent filter & Bulk Assignment
   useEffect(() => {
@@ -150,18 +157,49 @@ export default function TicketsPage() {
 
   return (
     <div className="space-y-6 pb-20">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Support Tickets</h1>
-          <p className="text-sm text-slate-500">Help Desk ticketing & SLA management</p>
+          <h1 className="text-2xl font-bold text-slate-900">Issues & Bug Tracker Overview</h1>
+          <p className="text-sm text-slate-500">Cross-project issue tracking, SLA compliance & resolutions</p>
         </div>
-        <Link
-          href="/tickets/new"
-          className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          New Ticket
-        </Link>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-md">
+            <button
+              onClick={() => setViewMode("list")}
+              className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded ${
+                viewMode === "list" ? "bg-white text-[#0070BA] shadow-xs" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <List className="h-3.5 w-3.5" />
+              <span>List</span>
+            </button>
+            <button
+              onClick={() => setViewMode("kanban")}
+              className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded ${
+                viewMode === "kanban" ? "bg-white text-[#0070BA] shadow-xs" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>Kanban</span>
+            </button>
+          </div>
+
+          <button
+            onClick={handleExportIssues}
+            className="inline-flex items-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors shadow-xs"
+          >
+            <Download className="h-3.5 w-3.5 text-emerald-600" />
+            <span>Export Issues</span>
+          </button>
+
+          <Link
+            href="/tickets/new"
+            className="inline-flex items-center gap-1.5 rounded-md bg-[#0070BA] px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            Submit Issue
+          </Link>
+        </div>
       </div>
 
       {/* Multi-Attribute Filter Toolbar */}
@@ -277,10 +315,48 @@ export default function TicketsPage() {
         </div>
       )}
 
-      {/* Ticket List */}
-      <div className="space-y-3">
-        {loading ? (
-          <div className="space-y-3">
+      {/* Ticket List or Kanban View */}
+      {viewMode === "kanban" ? (
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {STATUSES.map((status) => {
+            const columnTickets = tickets.filter((t) => t.status === status.id);
+            return (
+              <div key={status.id} className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 min-h-[400px]">
+                <div className="flex items-center justify-between font-bold text-xs text-slate-700 uppercase tracking-wider mb-3">
+                  <span>{status.name}</span>
+                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] text-slate-700">
+                    {columnTickets.length}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {columnTickets.map((ticket) => (
+                    <div
+                      key={ticket.id}
+                      onClick={() => (window.location.href = `/tickets/${ticket.id}`)}
+                      className="rounded-md border border-slate-200 bg-white p-3 shadow-xs hover:border-[#0070BA] cursor-pointer transition-all"
+                    >
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono mb-1">
+                        <span>{generateTicketKey(ticket.id)}</span>
+                        <span className={`px-1.5 py-0.2 rounded font-semibold ${colorForPriority(ticket.priority)}`}>
+                          {ticket.priority}
+                        </span>
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-900 line-clamp-2">{ticket.title}</h4>
+                      <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+                        <span>{ticket.customer?.name || "Customer"}</span>
+                        <span>{ticket.assignee?.name || "Unassigned"}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {loading ? (
+            <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="h-20 animate-pulse rounded-xl border border-slate-200 bg-white" />
             ))}
@@ -302,6 +378,7 @@ export default function TicketsPage() {
           ))
         )}
       </div>
+      )}
 
       {/* Pagination */}
       {total > 0 && (

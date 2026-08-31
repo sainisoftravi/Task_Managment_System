@@ -89,7 +89,7 @@ export default function ProjectReportsTab({ project, tasks }: ProjectReportsTabP
   return (
     <div className="flex flex-col lg:flex-row h-[750px] border border-slate-200 bg-white rounded-md shadow-xs overflow-hidden font-sans">
       
-      {/* Left Sidebar: REPORTS & FOLDERS matching Zoho Screenshot 1 */}
+      {/* Left Sidebar: REPORTS & FOLDERS */}
       <div className="w-full lg:w-64 border-r border-slate-200 bg-slate-50/70 p-3 overflow-y-auto flex-shrink-0">
         <div className="flex items-center justify-between border-b border-slate-200 pb-2.5 mb-3">
           <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -221,7 +221,7 @@ export default function ProjectReportsTab({ project, tasks }: ProjectReportsTabP
         </div>
       </div>
 
-      {/* Right Sidebar: Chart Configuration matching Zoho Screenshot 1 */}
+      {/* Right Sidebar: Chart Configuration */}
       <div className="w-full lg:w-72 border-l border-slate-200 bg-slate-50/70 p-4 overflow-y-auto flex-shrink-0">
         <div className="flex items-center justify-between border-b border-slate-200 pb-2.5 mb-4">
           <span className="text-xs font-bold text-slate-800">Chart Configuration</span>

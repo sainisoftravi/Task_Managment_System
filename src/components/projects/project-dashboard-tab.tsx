@@ -37,7 +37,7 @@ export default function ProjectDashboardTab({ project, tasks }: ProjectDashboard
     else statusCounts["Not Started"]++;
   });
 
-  // Ensure default demo counts if empty to match Zoho screenshot
+  // Ensure default demo counts if empty
   if (tasks.length === 0) {
     statusCounts["Closed"] = 15;
     statusCounts["In Review"] = 3;
@@ -73,7 +73,7 @@ export default function ProjectDashboardTab({ project, tasks }: ProjectDashboard
         </button>
       </div>
 
-      {/* Widgets Grid (2 Columns matching Zoho Screenshot 2) */}
+      {/* Widgets Grid (2 Columns) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         
         {/* Widget 1: Task Status Pie Chart */}

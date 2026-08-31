@@ -16,26 +16,50 @@ import {
   Settings,
   Menu,
   LogOut,
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  Layers,
+  AlertCircle,
+  Users as UsersIcon,
+  MessageSquare,
+  PanelLeftClose,
+  Search,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-import { Users as UsersIcon } from "lucide-react";
-
-const navItems = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Tickets", href: "/tickets", icon: Ticket },
+const mainNavItems = [
+  { name: "Home", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "Projects", href: "/projects", icon: Briefcase },
   { name: "Users", href: "/users", icon: UsersIcon },
-  { name: "Time Tracking", href: "/time-tracking", icon: Clock },
-  { name: "Knowledge Base", href: "/kb", icon: BookOpen },
-  { name: "Reports", href: "/reports", icon: BarChart3 },
+  { name: "Collaboration", href: "/kb", icon: MessageSquare },
 ];
+
+const overviewItems = [
+  { name: "Tasks", href: "/projects", icon: KanbanSquare },
+  { name: "Time Logs", href: "/time-tracking", icon: Clock },
+  { name: "Issues", href: "/tickets", icon: AlertCircle },
+  { name: "Phases", href: "/projects", icon: Layers },
+];
+
+const recentProjects = [
+  { name: "01 PoC Projects", id: "poc-1" },
+  { name: "06 Monthly Miscellaneous Tasks", id: "misc-6" },
+  { name: "07 Command Center Automation", id: "auto-7" },
+];
+
+import NotificationDrawer from "@/components/notifications/notification-drawer";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout, loading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [overviewExpanded, setOverviewExpanded] = useState(true);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -44,82 +68,158 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }, [loading, user, router]);
 
   if (loading) {
-    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+    return <div className="flex h-screen items-center justify-center font-sans text-sm text-slate-500">Loading...</div>;
   }
 
   if (!user) {
-    return <div className="flex h-screen items-center justify-center">Redirecting...</div>;
+    return <div className="flex h-screen items-center justify-center font-sans text-sm text-slate-500">Redirecting...</div>;
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden font-sans">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/30 lg:hidden"
+          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar matching Zoho Projects Dark Navigation Bar */}
+      {/* Dark Navigation Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 transform overflow-y-auto bg-[#0D1117] border-r border-slate-800 text-slate-300 transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:w-64",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full",
+          "fixed inset-y-0 left-0 z-40 transform overflow-y-auto bg-[#0D1117] border-r border-slate-800 text-slate-300 transition-all duration-200 ease-in-out lg:translate-x-0 lg:static flex flex-col",
+          collapsed ? "lg:w-16 w-64" : "w-64",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-16 items-center justify-between px-4 border-b border-slate-800/80">
-          <Link href="/dashboard" className="flex items-center space-x-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 shadow-md">
-              <Ticket className="h-4 w-4 text-white" />
+        {/* Top Header Bar */}
+        <div className="flex h-14 items-center justify-between px-3.5 border-b border-slate-800/80">
+          <Link href="/dashboard" className="flex items-center space-x-2 truncate">
+            <div className="flex h-7 w-7 items-center justify-center rounded bg-gradient-to-tr from-blue-600 to-indigo-500 shadow-xs flex-shrink-0">
+              <Ticket className="h-3.5 w-3.5 text-white" />
             </div>
-            <span className="text-lg font-black tracking-tight text-white">TaskPMP</span>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">Zoho Edition</span>
+            {!collapsed && (
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-bold text-white tracking-tight">Projects</span>
+                <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+              </div>
+            )}
           </Link>
+
           <button
-            onClick={() => setSidebarOpen(false)}
-            className="rounded-md p-1 text-slate-400 hover:bg-slate-800 lg:hidden"
+            onClick={() => setCollapsed(!collapsed)}
+            title="Show/Hide Panel"
+            className="hidden lg:flex p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors"
           >
-            <Menu className="h-5 w-5" />
+            <PanelLeftClose className={cn("h-4 w-4 transition-transform", collapsed ? "rotate-180" : "")} />
           </button>
         </div>
 
-        <nav className="mt-4 space-y-1 px-3">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-xs font-semibold transition-all",
-                  isActive
-                    ? "bg-[#0070BA] text-white shadow-sm font-bold"
-                    : "text-slate-400 hover:bg-slate-800/70 hover:text-slate-100",
-                )}
-              >
-                <Icon className={cn("h-4 w-4", isActive ? "text-white" : "text-slate-400")} />
-                {item.name}
-              </Link>
-            );
-          })}
-        </nav>
+        {/* Main Navigation Links */}
+        <div className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
+          <nav className="space-y-0.5">
+            {mainNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-md px-3 py-2 text-xs font-medium transition-all",
+                    isActive
+                      ? "bg-[#0070BA] text-white shadow-xs font-bold"
+                      : "text-slate-300 hover:bg-slate-800/60 hover:text-white",
+                    collapsed ? "justify-center px-0" : ""
+                  )}
+                  title={collapsed ? item.name : undefined}
+                >
+                  <Icon className={cn("h-4 w-4 flex-shrink-0", isActive ? "text-white" : "text-slate-400")} />
+                  {!collapsed && <span>{item.name}</span>}
+                </Link>
+              );
+            })}
+          </nav>
 
-        <div className="mt-auto border-t border-slate-800/80 p-4">
+          {/* Overview Section */}
+          {!collapsed && (
+            <div className="pt-2 border-t border-slate-800/60">
+              <div
+                onClick={() => setOverviewExpanded(!overviewExpanded)}
+                className="flex items-center justify-between px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-200"
+              >
+                <div className="flex items-center gap-1.5">
+                  <ChevronRight className={cn("h-3 w-3 transition-transform", overviewExpanded ? "rotate-90" : "")} />
+                  <span>Overview</span>
+                </div>
+                <div className="flex items-center gap-1 text-slate-500">
+                  <Search className="h-3 w-3 hover:text-slate-300" />
+                  <Plus className="h-3 w-3 hover:text-slate-300" />
+                </div>
+              </div>
+
+              {overviewExpanded && (
+                <div className="mt-1 space-y-0.5 pl-2">
+                  {overviewItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className="flex items-center gap-3 rounded-md px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800/60 hover:text-white transition-colors"
+                      >
+                        <Icon className="h-3.5 w-3.5 text-slate-400" />
+                        <span>{item.name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Recent Projects Section */}
+          {!collapsed && (
+            <div className="pt-2 border-t border-slate-800/60">
+              <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                <span>Recent Projects</span>
+                <Search className="h-3 w-3 text-slate-500 hover:text-slate-300 cursor-pointer" />
+              </div>
+              <div className="mt-1 space-y-1">
+                {recentProjects.map((p) => (
+                  <Link
+                    key={p.id}
+                    href="/projects"
+                    className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold text-blue-400 hover:bg-slate-800/60 hover:text-blue-300 transition-colors truncate"
+                  >
+                    <Folder className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
+                    <span className="truncate">{p.name}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* User Footer */}
+        <div className="mt-auto border-t border-slate-800/80 p-3">
           <button
             onClick={logout}
-            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+            className={cn(
+              "flex w-full items-center gap-3 rounded-md px-3 py-2 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition-colors",
+              collapsed ? "justify-center px-0" : ""
+            )}
           >
             <LogOut className="h-4 w-4" />
-            Sign Out
+            {!collapsed && <span>Sign Out</span>}
           </button>
         </div>
       </aside>
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4">
+        <header className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4">
           <button
             onClick={() => setSidebarOpen(true)}
             className="rounded-md p-2 text-slate-500 hover:bg-slate-100 lg:hidden"
@@ -127,18 +227,22 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Menu className="h-5 w-5" />
           </button>
 
-          <div className="flex items-center gap-4">
-            <button className="rounded-md p-2 text-slate-500 hover:bg-slate-100">
+          <div className="flex items-center gap-4 ml-auto">
+            <button
+              onClick={() => setNotificationsOpen(true)}
+              className="relative rounded-md p-2 text-slate-500 hover:bg-slate-100 transition-colors"
+            >
               <Bell className="h-5 w-5" />
+              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500" />
             </button>
             <button className="rounded-md p-2 text-slate-500 hover:bg-slate-100">
               <Settings className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center">
-                {user?.name?.[0] || user?.email?.[0] || "?"}
+              <div className="h-8 w-8 rounded-full bg-[#0070BA] text-white flex items-center justify-center font-bold text-xs">
+                {user?.name?.[0] || user?.email?.[0] || "A"}
               </div>
-              <span className="text-sm font-medium text-slate-700">{user.name || user.email}</span>
+              <span className="text-xs font-bold text-slate-700">{user.name || user.email}</span>
             </div>
           </div>
         </header>
@@ -146,6 +250,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>
+
+        <NotificationDrawer
+          isOpen={notificationsOpen}
+          onClose={() => setNotificationsOpen(false)}
+        />
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import { AuthProvider } from "@/contexts/auth-context";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Task & Ticket System | Zoho Desk + Projects",
+  title: "TaskPMP Enterprise | Unified Ticket & Project Management System",
   description: "Unified ticket management and project management platform",
 };
 
