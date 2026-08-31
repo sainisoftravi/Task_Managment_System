@@ -185,6 +185,14 @@ export default function ProjectOverviewPage() {
           >
             Users
           </button>
+          <button
+            onClick={() => setActiveTab("time-logs")}
+            className={`pb-2.5 transition-colors border-b-2 ${
+              activeTab === "time-logs" ? "border-[#0070BA] text-[#0070BA]" : "border-transparent text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            Time Logs
+          </button>
         </div>
       </div>
 
@@ -299,6 +307,60 @@ export default function ProjectOverviewPage() {
 
       {activeTab === "users" && (
         <ProjectUsersTab project={project} />
+      )}
+
+      {activeTab === "time-logs" && (
+        <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">Project Time Logs ({project.name})</h2>
+              <p className="text-xs text-slate-500">Track task and issue log hours specifically for this project</p>
+            </div>
+
+            <button
+              onClick={() => {
+                alert(`Exporting time logs specifically for project ${project.name} (.xlsx format)...`);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs"
+            >
+              <Clock className="h-3.5 w-3.5 text-slate-600" />
+              <span>Export Project Time Logs</span>
+            </button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold uppercase text-[10px]">
+                  <th className="py-2.5 px-3">Date</th>
+                  <th className="py-2.5 px-3">User</th>
+                  <th className="py-2.5 px-3">Task / Issue</th>
+                  <th className="py-2.5 px-3 text-center">Billing Type</th>
+                  <th className="py-2.5 px-3 text-center">Approval Status</th>
+                  <th className="py-2.5 px-3 text-right">Logged Hours</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-sans">
+                <tr className="hover:bg-blue-50/20">
+                  <td className="py-2.5 px-3 font-mono font-bold text-slate-700">22-12-2025</td>
+                  <td className="py-2.5 px-3 font-medium text-slate-800">Ravi Saini</td>
+                  <td className="py-2.5 px-3 font-bold text-slate-900">02 Project Master Excel</td>
+                  <td className="py-2.5 px-3 text-center">
+                    <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                      Billable
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-3 text-center">
+                    <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-bold text-[10px]">
+                      Approved
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-800">01:00 hrs</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   );

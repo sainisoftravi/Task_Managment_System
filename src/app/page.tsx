@@ -100,123 +100,118 @@ export default function LandingPage() {
           </defs>
         </svg>
 
-        {/* Hero Content & CTA */}
-        <div className="relative z-20 max-w-4xl mx-auto text-center pt-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-4 py-1.5 text-xs font-semibold text-blue-300 mb-8 backdrop-blur-md shadow-inner">
-            <Sparkles className="h-3.5 w-3.5 text-cyan-400 animate-spin-slow" />
-            <span>Unified Ticket & Project Management System</span>
-          </div>
+        {/* Hero Content Grid (2 Columns: Text Left, Interactive Cards Right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center pt-6 relative z-20">
+          {/* Left Column: Hero Text & CTAs */}
+          <div className="lg:col-span-7 space-y-6 text-left">
+            <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-4 py-1.5 text-xs font-semibold text-blue-300 backdrop-blur-md shadow-inner">
+              <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+              <span>Unified Ticket & Project Management System</span>
+            </div>
 
-          <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-white leading-[1.12] mb-6">
-            Help Desk Meets <br />
-            <span className="bg-gradient-to-r from-[#38BDF8] via-[#818CF8] to-[#34D399] bg-clip-text text-transparent">
-              Project Management
-            </span>
-          </h1>
-
-          <p className="text-base sm:text-lg text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed font-normal">
-            Unified Ticket & Project Management Operations. Seamlessly ingest support tickets, calculate SLA metrics, convert customer issues into actionable engineering tasks with 2-way sync, and export rich Excel & PDF reports.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-30">
-            <Link
-              href="/login"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-3.5 text-sm font-bold text-white shadow-2xl shadow-blue-600/40 hover:shadow-blue-500/60 hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer border border-blue-400/20"
-            >
-              <span>Launch Live Dashboard</span>
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/login"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-xl border border-slate-700/80 bg-slate-900/90 px-7 py-3.5 text-sm font-semibold text-slate-200 hover:bg-slate-800 hover:text-white transition-all backdrop-blur-md cursor-pointer shadow-lg"
-            >
-              <Zap className="h-4 w-4 text-amber-400" />
-              <span>Demo Login (Auto-fill)</span>
-            </Link>
-          </div>
-        </div>
-
-        {/* Floating Right Product Showcase Cards (Connected by Glowing Nodes) */}
-        <div className="hidden xl:block absolute right-0 top-16 w-96 space-y-6 pointer-events-none z-20">
-          
-          {/* Widget 1: Ticket Flow & SLA Metrics */}
-          <div className="rounded-2xl border border-slate-700/60 bg-slate-900/85 p-4 shadow-2xl backdrop-blur-xl animate-float-slow relative overflow-hidden">
-            <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
-              <span className="text-xs font-bold text-slate-200 flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-blue-500 animate-ping" /> Ticket Flow
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.12]">
+              Help Desk Meets <br />
+              <span className="bg-gradient-to-r from-[#38BDF8] via-[#818CF8] to-[#34D399] bg-clip-text text-transparent">
+                Project Management
               </span>
-              <span className="text-[10px] text-slate-400 font-semibold bg-slate-800 px-2 py-0.5 rounded">SLA metrics</span>
+            </h1>
+
+            <p className="text-base sm:text-lg text-slate-400 max-w-xl leading-relaxed font-normal">
+              Unified Ticket & Project Management Operations. Seamlessly ingest support tickets, calculate SLA metrics, convert customer issues into engineering tasks with 2-way sync, and export rich Excel & PDF reports.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
+              <Link
+                href="/login"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-3.5 text-sm font-bold text-white shadow-2xl shadow-blue-600/40 hover:shadow-blue-500/60 hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer border border-blue-400/20"
+              >
+                <span>Launch Live Dashboard</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/login"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-xl border border-slate-700/80 bg-slate-900/90 px-7 py-3.5 text-sm font-semibold text-slate-200 hover:bg-slate-800 hover:text-white transition-all backdrop-blur-md cursor-pointer shadow-lg"
+              >
+                <Zap className="h-4 w-4 text-amber-400" />
+                <span>Demo Login (Auto-fill)</span>
+              </Link>
             </div>
-            <div className="flex items-end justify-between gap-2 h-20 pt-2">
-              <div className="w-1/6 bg-blue-500 rounded-t h-3/4 animate-pulse" />
-              <div className="w-1/6 bg-indigo-500 rounded-t h-full" />
-              <div className="w-1/6 bg-emerald-500 rounded-t h-2/3" />
-              <div className="w-1/6 bg-amber-500 rounded-t h-1/2" />
-              <div className="w-1/6 bg-red-500 rounded-t h-4/5" />
-              <div className="w-1/6 bg-cyan-500 rounded-t h-full animate-pulse" />
-            </div>
-            {/* Glowing Connection Dot */}
-            <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-cyan-400 shadow-lg shadow-cyan-400/80 animate-pulse-glow" />
           </div>
 
-          {/* Widget 2: Interactive Kanban Board Preview */}
-          <div className="rounded-2xl border border-slate-700/60 bg-slate-900/85 p-4 shadow-2xl backdrop-blur-xl animate-float-medium relative">
-            <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
-              <span className="text-xs font-bold text-slate-200">Kanban Board</span>
-              <span className="text-[10px] text-emerald-400 font-semibold">Active Sync</span>
-            </div>
-            <div className="grid grid-cols-4 gap-2 text-[10px]">
-              <div className="bg-slate-800/80 rounded p-1.5 border border-slate-700/50">
-                <span className="font-semibold text-slate-400 block mb-1">To Do</span>
-                <div className="bg-slate-900 p-1 rounded text-slate-300 font-medium truncate">Fix API lag</div>
+          {/* Right Column: Floating Showcase Cards */}
+          <div className="lg:col-span-5 space-y-4">
+            {/* Widget 1: Ticket Flow & SLA Metrics */}
+            <div className="rounded-2xl border border-slate-700/60 bg-slate-900/85 p-4 shadow-2xl backdrop-blur-xl">
+              <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+                <span className="text-xs font-bold text-slate-200 flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-blue-500 animate-ping" /> Ticket Flow
+                </span>
+                <span className="text-[10px] text-slate-400 font-semibold bg-slate-800 px-2 py-0.5 rounded">SLA metrics</span>
               </div>
-              <div className="bg-slate-800/80 rounded p-1.5 border border-slate-700/50">
-                <span className="font-semibold text-blue-400 block mb-1">In Progress</span>
-                <div className="bg-slate-900 p-1 rounded text-slate-300 font-medium truncate">UI Redesign</div>
-              </div>
-              <div className="bg-slate-800/80 rounded p-1.5 border border-slate-700/50">
-                <span className="font-semibold text-amber-400 block mb-1">Review</span>
-                <div className="bg-slate-900 p-1 rounded text-slate-300 font-medium truncate">SLA Escalation</div>
-              </div>
-              <div className="bg-slate-800/80 rounded p-1.5 border border-slate-700/50">
-                <span className="font-semibold text-emerald-400 block mb-1">Done</span>
-                <div className="bg-slate-900 p-1 rounded text-slate-300 font-medium truncate">Export PDF</div>
+              <div className="flex items-end justify-between gap-2 h-16 pt-1">
+                <div className="w-1/6 bg-blue-500 rounded-t h-3/4 animate-pulse" />
+                <div className="w-1/6 bg-indigo-500 rounded-t h-full" />
+                <div className="w-1/6 bg-emerald-500 rounded-t h-2/3" />
+                <div className="w-1/6 bg-amber-500 rounded-t h-1/2" />
+                <div className="w-1/6 bg-red-500 rounded-t h-4/5" />
+                <div className="w-1/6 bg-cyan-500 rounded-t h-full animate-pulse" />
               </div>
             </div>
-            {/* Glowing Connection Dot */}
-            <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-blue-400 shadow-lg shadow-blue-400/80 animate-pulse-glow" />
-          </div>
 
-          {/* Widget 3: Gantt Timeline Chart Preview */}
-          <div className="rounded-2xl border border-slate-700/60 bg-slate-900/85 p-4 shadow-2xl backdrop-blur-xl animate-float-slow relative">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-200">Gantt Timeline Chart</span>
-              <span className="text-[10px] text-indigo-400 font-medium">Finish-to-Start</span>
+            {/* Widget 2: Interactive Kanban Board Preview */}
+            <div className="rounded-2xl border border-slate-700/60 bg-slate-900/85 p-4 shadow-2xl backdrop-blur-xl">
+              <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+                <span className="text-xs font-bold text-slate-200">Kanban Board</span>
+                <span className="text-[10px] text-emerald-400 font-semibold">Active Sync</span>
+              </div>
+              <div className="grid grid-cols-4 gap-2 text-[10px]">
+                <div className="bg-slate-800/80 rounded p-1.5 border border-slate-700/50">
+                  <span className="font-semibold text-slate-400 block mb-1">To Do</span>
+                  <div className="bg-slate-900 p-1 rounded text-slate-300 font-medium truncate">Fix API lag</div>
+                </div>
+                <div className="bg-slate-800/80 rounded p-1.5 border border-slate-700/50">
+                  <span className="font-semibold text-blue-400 block mb-1">In Progress</span>
+                  <div className="bg-slate-900 p-1 rounded text-slate-300 font-medium truncate">UI Redesign</div>
+                </div>
+                <div className="bg-slate-800/80 rounded p-1.5 border border-slate-700/50">
+                  <span className="font-semibold text-amber-400 block mb-1">Review</span>
+                  <div className="bg-slate-900 p-1 rounded text-slate-300 font-medium truncate">SLA Escalation</div>
+                </div>
+                <div className="bg-slate-800/80 rounded p-1.5 border border-slate-700/50">
+                  <span className="font-semibold text-emerald-400 block mb-1">Done</span>
+                  <div className="bg-slate-900 p-1 rounded text-slate-300 font-medium truncate">Export PDF</div>
+                </div>
+              </div>
             </div>
-            <div className="space-y-2 pt-1 text-[10px]">
-              <div className="flex items-center gap-2">
-                <span className="w-12 text-slate-400 truncate">Design</span>
-                <div className="flex-1 bg-slate-800 rounded-full h-2 overflow-hidden">
-                  <div className="bg-blue-500 h-full w-2/3 rounded-full" />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-12 text-slate-400 truncate">Develop</span>
-                <div className="flex-1 bg-slate-800 rounded-full h-2 overflow-hidden">
-                  <div className="bg-indigo-500 h-full w-4/5 rounded-full ml-[20%]" />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-12 text-slate-400 truncate">Deploy</span>
-                <div className="flex-1 bg-slate-800 rounded-full h-2 overflow-hidden">
-                  <div className="bg-emerald-500 h-full w-1/3 rounded-full ml-[70%]" />
-                </div>
-              </div>
-            </div>
-            {/* Glowing Connection Dot */}
-            <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-indigo-400 shadow-lg shadow-indigo-400/80 animate-pulse-glow" />
-          </div>
 
+            {/* Widget 3: Gantt Timeline Chart Preview */}
+            <div className="rounded-2xl border border-slate-700/60 bg-slate-900/85 p-4 shadow-2xl backdrop-blur-xl">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-slate-200">Gantt Timeline Chart</span>
+                <span className="text-[10px] text-indigo-400 font-medium">Finish-to-Start</span>
+              </div>
+              <div className="space-y-2 pt-1 text-[10px]">
+                <div className="flex items-center gap-2">
+                  <span className="w-12 text-slate-400 truncate">Design</span>
+                  <div className="flex-1 bg-slate-800 rounded-full h-2 overflow-hidden">
+                    <div className="bg-blue-500 h-full w-2/3 rounded-full" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-12 text-slate-400 truncate">Develop</span>
+                  <div className="flex-1 bg-slate-800 rounded-full h-2 overflow-hidden">
+                    <div className="bg-indigo-500 h-full w-4/5 rounded-full ml-[20%]" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-12 text-slate-400 truncate">Deploy</span>
+                  <div className="flex-1 bg-slate-800 rounded-full h-2 overflow-hidden">
+                    <div className="bg-emerald-500 h-full w-1/3 rounded-full ml-[70%]" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Feature Cards Grid (3 Columns matching bottom of image) */}

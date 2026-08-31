@@ -35,6 +35,8 @@ import {
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
+import { Play, Pause, Square } from "lucide-react";
+
 interface TaskDetailDrawerProps {
   task: Task | null;
   isOpen: boolean;
@@ -45,6 +47,18 @@ export default function TaskDetailDrawer({ task, isOpen, onClose }: TaskDetailDr
   const [activeTab, setActiveTab] = useState<"comments" | "subtasks" | "documents" | "forums" | "dependency" | "activity">("comments");
   const [descOpen, setDescOpen] = useState(true);
   const [infoOpen, setInfoOpen] = useState(true);
+
+  // Live Task Timer Controls
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerPaused, setTimerPaused] = useState(false);
+  const [timerSeconds, setTimerSeconds] = useState(1845); // 00:30:45
+
+  const formatTimer = (totalSec: number) => {
+    const hrs = Math.floor(totalSec / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    return `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
 
   // Form Fields
   const [owner, setOwner] = useState(task?.assignee?.name || "Ravi Saini");
@@ -73,7 +87,42 @@ export default function TaskDetailDrawer({ task, isOpen, onClose }: TaskDetailDr
             </span>
           </div>
 
+          {/* Live Timer Controls */}
           <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-slate-200/80 px-3 py-1 rounded-full text-xs font-mono font-bold text-slate-800">
+              <Clock className="h-3.5 w-3.5 text-[#0070BA]" />
+              <span>{formatTimer(timerSeconds)}</span>
+              {!timerRunning ? (
+                <button
+                  onClick={() => { setTimerRunning(true); setTimerPaused(false); }}
+                  className="p-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                  title="Start Live Timer"
+                >
+                  <Play className="h-3 w-3 fill-current" />
+                </button>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setTimerPaused(!timerPaused)}
+                    className="p-1 rounded bg-amber-500 text-white hover:bg-amber-600"
+                    title={timerPaused ? "Resume Timer" : "Pause Timer"}
+                  >
+                    {timerPaused ? <Play className="h-3 w-3 fill-current" /> : <Pause className="h-3 w-3 fill-current" />}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setTimerRunning(false);
+                      alert(`Timer stopped! Recorded ${formatTimer(timerSeconds)} to project timesheet.`);
+                    }}
+                    className="p-1 rounded bg-rose-600 text-white hover:bg-rose-700"
+                    title="Stop Timer and Log Effort"
+                  >
+                    <Square className="h-3 w-3 fill-current" />
+                  </button>
+                </div>
+              )}
+            </div>
+
             <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-700">
               <X className="h-5 w-5" />
             </button>

@@ -6,6 +6,7 @@ import { Ticket, TrendingUp, Calendar, Users, Loader2, Download, CheckCircle, Cl
 import { OpenClosedChart } from "@/components/dashboard/open-closed-chart";
 import { PriorityDoughnutChart } from "@/components/dashboard/priority-doughnut-chart";
 import { ExportModal } from "@/components/reports/export-modal";
+import MyTimeLogsWidget from "@/components/dashboard/my-time-logs-widget";
 
 interface DashboardData {
   slaStats: any[];
@@ -194,11 +195,14 @@ export default function DashboardPage() {
         assigneeData={assigneeBreakdown || []}
       />
 
-      {/* SLA Section & Overdue Tasks */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <SLASection slaStats={data.slaStats} />
-        <OverdueTasksSection tasks={data.overdueTasks} />
-      </div>
+      {activeTab === "personal" && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <MyTimeLogsWidget onLogTimeClick={() => window.location.href = "/time-tracking"} />
+            <OverdueTasksSection tasks={data.overdueTasks} />
+          </div>
+        </div>
+      )}
 
       {/* Resource Hours & Project Progress */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
