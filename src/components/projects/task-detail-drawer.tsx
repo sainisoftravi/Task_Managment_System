@@ -328,6 +328,13 @@ export default function TaskDetailDrawer({ task, isOpen, onClose, onUpdateTask }
               type="button"
               onClick={async () => {
                 if (confirm(`Move task '${task.title || task.key}' to Trash?`)) {
+                  try {
+                    const deletedTaskIds = JSON.parse(localStorage.getItem("deleted_task_ids") || "[]");
+                    if (task.id && !deletedTaskIds.includes(task.id)) deletedTaskIds.push(task.id);
+                    if (task.key && !deletedTaskIds.includes(task.key)) deletedTaskIds.push(task.key);
+                    localStorage.setItem("deleted_task_ids", JSON.stringify(deletedTaskIds));
+                  } catch {}
+
                   onClose();
                   const token = localStorage.getItem("token");
                   await fetch(`/api/tasks/${task.id}`, {

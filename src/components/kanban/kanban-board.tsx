@@ -234,6 +234,12 @@ function KanbanCard({ task, activeId }: KanbanCardProps) {
               e.preventDefault();
               e.stopPropagation();
               if (confirm(`Move task '${task.title}' to Trash?`)) {
+                try {
+                  const deletedTaskIds = JSON.parse(localStorage.getItem("deleted_task_ids") || "[]");
+                  if (task.id && !deletedTaskIds.includes(task.id)) deletedTaskIds.push(task.id);
+                  localStorage.setItem("deleted_task_ids", JSON.stringify(deletedTaskIds));
+                } catch {}
+
                 const token = localStorage.getItem("token");
                 await fetch(`/api/tasks/${task.id}`, {
                   method: "DELETE",

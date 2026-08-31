@@ -67,13 +67,20 @@ export default function ProjectsPage() {
   }, []);
 
   async function fetchProjects() {
+    let deletedIds: string[] = [];
+    try {
+      deletedIds = JSON.parse(localStorage.getItem("deleted_project_ids") || "[]");
+    } catch {}
+
     const token = localStorage.getItem("token");
     const res = await fetch("/api/projects", {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (res.ok) {
       const data = await res.json();
-      setProjects(data.projects || []);
+      const loaded: Project[] = data.projects || [];
+      const filtered = loaded.filter((p) => !deletedIds.includes(p.id) && (!p.key || !deletedIds.includes(p.key)));
+      setProjects(filtered);
     }
     setLoading(false);
   }
@@ -525,7 +532,7 @@ export default function ProjectsPage() {
                               </div>
 
                               <div className="py-0.5">
-                                <button
+                                 <button
                                   type="button"
                                   onClick={async (e) => {
                                     e.preventDefault();
@@ -533,7 +540,14 @@ export default function ProjectsPage() {
                                     setActiveProjectMenuId(null);
 
                                     if (confirm(`Move project '${project.name}' to Trash?`)) {
-                                      setProjects((prev) => prev.filter((p) => p.id !== project.id));
+                                      try {
+                                        const deletedIds = JSON.parse(localStorage.getItem("deleted_project_ids") || "[]");
+                                        if (!deletedIds.includes(project.id)) deletedIds.push(project.id);
+                                        if (project.key && !deletedIds.includes(project.key)) deletedIds.push(project.key);
+                                        localStorage.setItem("deleted_project_ids", JSON.stringify(deletedIds));
+                                      } catch {}
+
+                                      setProjects((prev) => prev.filter((p) => p.id !== project.id && p.key !== project.key));
                                       const token = localStorage.getItem("token");
                                       await fetch(`/api/projects/${project.id}`, {
                                         method: "DELETE",

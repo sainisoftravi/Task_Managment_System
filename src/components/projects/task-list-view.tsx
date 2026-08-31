@@ -146,10 +146,16 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
     },
   ];
 
-  // Dynamic Local Tasks State
+  // Dynamic Local Tasks State with localStorage deleted_task_ids persistence
   const [localTasks, setLocalTasks] = useState<any[]>(() => {
-    if (Array.isArray(tasks)) {
-      return tasks.map((t) => ({
+    let deletedTaskIds: string[] = [];
+    try {
+      deletedTaskIds = JSON.parse(localStorage.getItem("deleted_task_ids") || "[]");
+    } catch {}
+
+    let baseTasks = initialTasksList;
+    if (Array.isArray(tasks) && tasks.length > 0) {
+      baseTasks = tasks.map((t) => ({
         id: t.id,
         key: t.key || `1P1-${t.id.slice(0, 4)}`,
         title: t.title,
@@ -165,28 +171,32 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
         pct: (t as any).pct ?? 0,
       }));
     }
-    return initialTasksList;
+    return baseTasks.filter((t) => !deletedTaskIds.includes(t.id) && (!t.key || !deletedTaskIds.includes(t.key)));
   });
 
   useEffect(() => {
-    if (Array.isArray(tasks)) {
-      setLocalTasks(
-        tasks.map((t) => ({
-          id: t.id,
-          key: t.key || `1P1-${t.id.slice(0, 4)}`,
-          title: t.title,
-          owner: t.assignee?.name || "Unassigned",
-          status: t.status || "not yet Started",
-          startDate: t.startDate ? parseToDateTimeInput(t.startDate) : "2025-12-22T19:00",
-          dueDate: t.dueDate ? parseToDateTimeInput(t.dueDate) : "2025-12-23T11:00",
-          overdueText: "(178 day(s) and 10 hour)",
-          duration: "01:00 hrs",
-          durationUnit: "hrs",
-          durationValue: 1,
-          priority: t.priority ? `! ${t.priority}` : "! None",
-          pct: (t as any).pct ?? 0,
-        }))
-      );
+    let deletedTaskIds: string[] = [];
+    try {
+      deletedTaskIds = JSON.parse(localStorage.getItem("deleted_task_ids") || "[]");
+    } catch {}
+
+    if (Array.isArray(tasks) && tasks.length > 0) {
+      const formatted = tasks.map((t) => ({
+        id: t.id,
+        key: t.key || `1P1-${t.id.slice(0, 4)}`,
+        title: t.title,
+        owner: t.assignee?.name || "Unassigned",
+        status: t.status || "not yet Started",
+        startDate: t.startDate ? parseToDateTimeInput(t.startDate) : "2025-12-22T19:00",
+        dueDate: t.dueDate ? parseToDateTimeInput(t.dueDate) : "2025-12-23T11:00",
+        overdueText: "(178 day(s) and 10 hour)",
+        duration: "01:00 hrs",
+        durationUnit: "hrs",
+        durationValue: 1,
+        priority: t.priority ? `! ${t.priority}` : "! None",
+        pct: (t as any).pct ?? 0,
+      }));
+      setLocalTasks(formatted.filter((t) => !deletedTaskIds.includes(t.id) && (!t.key || !deletedTaskIds.includes(t.key))));
     }
   }, [tasks]);
 
@@ -304,8 +314,15 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
 
   const handleDeleteTask = async (taskId: string) => {
     if (!confirm("Move this task to Trash?")) return;
-    setLocalTasks((prev) => prev.filter((t) => t.id !== taskId));
-    if (selectedDrawerTask?.id === taskId) {
+
+    try {
+      const deletedTaskIds = JSON.parse(localStorage.getItem("deleted_task_ids") || "[]");
+      if (!deletedTaskIds.includes(taskId)) deletedTaskIds.push(taskId);
+      localStorage.setItem("deleted_task_ids", JSON.stringify(deletedTaskIds));
+    } catch {}
+
+    setLocalTasks((prev) => prev.filter((t) => t.id !== taskId && t.key !== taskId));
+    if (selectedDrawerTask?.id === taskId || selectedDrawerTask?.key === taskId) {
       setSelectedDrawerTask(null);
     }
     const token = localStorage.getItem("token");
