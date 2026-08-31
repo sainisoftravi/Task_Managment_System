@@ -3,50 +3,41 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { wsServer } from "@/lib/websocket-server";
 
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = getSession(req);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const projectKey = new URL(req.url).searchParams.get("key");
-  if (projectKey) {
-    const project = await prisma.project.findUnique({
-      where: { key: projectKey },
-      include: {
-        owner: { select: { id: true, name: true, email: true, avatar: true } },
-        team: true,
-        milestones: { include: { taskLists: true } },
-        taskLists: { include: { tasks: { include: { subtasks: true, dependencies: true, dependents: true } } } },
-        tasks: {
-          include: {
-            assignee: { select: { id: true, name: true, avatar: true } },
-            taskList: true,
-            subtasks: true,
-            dependencies: { include: { dependsOn: true } },
-            dependents: { include: { task: true } },
-          },
-        },
-        members: { include: { user: { select: { id: true, name: true, email: true, avatar: true, role: true } } } },
-        tickets: true,
-        _count: { select: { tasks: true, milestones: true, timeLogs: true } },
-      },
-    });
-    if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
-    return NextResponse.json({ project });
-  }
+  const { id } = await params;
 
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
-  const where = id ? { id } : {};
-  const projects = await prisma.project.findMany({
-    where,
+  const project = await prisma.project.findFirst({
+    where: {
+      OR: [
+        { id: id },
+        { key: id },
+      ],
+    },
     include: {
       owner: { select: { id: true, name: true, email: true, avatar: true } },
       team: true,
+      milestones: { include: { taskLists: true } },
+      taskLists: { include: { tasks: { include: { subtasks: true, dependencies: true, dependents: true } } } },
+      tasks: {
+        include: {
+          assignee: { select: { id: true, name: true, avatar: true } },
+          taskList: true,
+          subtasks: true,
+          dependencies: { include: { dependsOn: true } },
+          dependents: { include: { task: true } },
+        },
+      },
+      members: { include: { user: { select: { id: true, name: true, email: true, avatar: true, role: true } } } },
+      tickets: true,
       _count: { select: { tasks: true, milestones: true, timeLogs: true } },
     },
   });
 
-  return NextResponse.json({ projects });
+  if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  return NextResponse.json({ project });
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

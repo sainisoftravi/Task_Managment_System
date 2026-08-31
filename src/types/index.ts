@@ -135,6 +135,7 @@ export interface Project {
   ownerId?: string | null;
   owner?: User | null;
   teamId?: string | null;
+  tasks?: Task[];
   createdAt: string;
   updatedAt: string;
 }
@@ -162,6 +163,7 @@ export interface TaskList {
 
 export interface Task {
   id: string;
+  key?: string;
   projectId: string;
   project?: Project | null;
   title: string;
@@ -171,6 +173,7 @@ export interface Task {
   assigneeId?: string | null;
   assignee?: User | null;
   taskListId: string;
+  taskList?: TaskList;
   parentTaskId?: string | null;
   estimatedHours?: number | null;
   loggedHours?: number | null;

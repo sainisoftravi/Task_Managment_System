@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { generateProjectKey } from "@/lib/utils";
+import { generateProjectKey, parseFlexibleDate } from "@/lib/utils";
 import { wsServer } from "@/lib/websocket-server";
 
 type ProjectStatusType = "PLANNING" | "ACTIVE" | "ON_HOLD" | "COMPLETED" | "ARCHIVED";
@@ -35,21 +35,23 @@ export async function POST(req: NextRequest) {
   const session = getSession(req);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { name, description, startDate, dueDate, teamId } = await req.json();
+  const { name, key: userKey, description, startDate, dueDate, teamId } = await req.json();
 
   if (!name || !startDate) {
     return NextResponse.json({ error: "Name and startDate required" }, { status: 400 });
   }
 
-  const key = generateProjectKey(name);
+  const parsedStart = parseFlexibleDate(startDate) || new Date();
+  const parsedDue = parseFlexibleDate(dueDate);
+  const key = userKey || generateProjectKey(name);
 
   const project = await prisma.project.create({
     data: {
       name,
       key,
       description,
-      startDate: new Date(startDate),
-      dueDate: dueDate ? new Date(dueDate) : undefined,
+      startDate: parsedStart,
+      dueDate: parsedDue,
       ownerId: session.userId,
       teamId: teamId || session.teamId || undefined,
       members: {

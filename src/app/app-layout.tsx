@@ -1,8 +1,8 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import {
   LayoutDashboard,
@@ -19,10 +19,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+import { Users as UsersIcon } from "lucide-react";
+
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Tickets", href: "/tickets", icon: Ticket },
   { name: "Projects", href: "/projects", icon: Briefcase },
+  { name: "Users", href: "/users", icon: UsersIcon },
   { name: "Time Tracking", href: "/time-tracking", icon: Clock },
   { name: "Knowledge Base", href: "/kb", icon: BookOpen },
   { name: "Reports", href: "/reports", icon: BarChart3 },
@@ -30,8 +33,15 @@ const navItems = [
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, logout, loading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+  }, [loading, user, router]);
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
@@ -51,29 +61,30 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar matching Zoho Projects Dark Navigation Bar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 transform overflow-y-auto bg-white shadow-md transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:w-64",
+          "fixed inset-y-0 left-0 z-40 w-64 transform overflow-y-auto bg-[#0D1117] border-r border-slate-800 text-slate-300 transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:w-64",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex h-16 items-center justify-between px-4">
-          <Link href="/dashboard" className="flex items-center space-x-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600">
-              <Ticket className="h-5 w-5 text-white" />
+        <div className="flex h-16 items-center justify-between px-4 border-b border-slate-800/80">
+          <Link href="/dashboard" className="flex items-center space-x-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 shadow-md">
+              <Ticket className="h-4 w-4 text-white" />
             </div>
-            <span className="text-xl font-bold text-slate-900">TaskPMP</span>
+            <span className="text-lg font-black tracking-tight text-white">TaskPMP</span>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">Zoho Edition</span>
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="rounded-md p-1 text-slate-500 hover:bg-slate-100 lg:hidden"
+            className="rounded-md p-1 text-slate-400 hover:bg-slate-800 lg:hidden"
           >
             <Menu className="h-5 w-5" />
           </button>
         </div>
 
-        <nav className="mt-6 space-y-1 px-2">
+        <nav className="mt-4 space-y-1 px-3">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname.startsWith(item.href);
@@ -82,25 +93,25 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-xs font-semibold transition-all",
                   isActive
-                    ? "bg-primary-50 text-primary-700"
-                    : "text-slate-700 hover:bg-slate-100 hover:text-slate-900",
+                    ? "bg-[#0070BA] text-white shadow-sm font-bold"
+                    : "text-slate-400 hover:bg-slate-800/70 hover:text-slate-100",
                 )}
               >
-                <Icon className="h-5 w-5" />
+                <Icon className={cn("h-4 w-4", isActive ? "text-white" : "text-slate-400")} />
                 {item.name}
               </Link>
             );
           })}
         </nav>
 
-        <div className="mt-auto border-t border-slate-200 p-4">
+        <div className="mt-auto border-t border-slate-800/80 p-4">
           <button
             onClick={logout}
-            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
           >
-            <LogOut className="h-5 w-5" />
+            <LogOut className="h-4 w-4" />
             Sign Out
           </button>
         </div>
