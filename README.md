@@ -83,6 +83,21 @@
   - **Status Normalization**: Automatic normalization mapping between database task statuses (`TODO`, `IN_PROGRESS`, `IN_REVIEW`, `BLOCKED`, `DONE`) and human-readable labels (`"To Do"`, `"not yet Started"`, `"Open"`, `"Completed"`, `"Closed"`).
   - **Optimistic Drag State**: Instant visual card movement across columns upon drop with background API synchronization (`PATCH /api/tasks/${id}`).
   - **Expanded Droppable Targets**: `min-h-[300px]` drop target height ensuring empty status columns (*In Progress*, *Blocked*, *Done*) have large drop targets.
+- **Task Details Page & Interactive Central Hub (`task-detail-drawer.tsx`)**:
+  - **Left Checklist Side Panel**: Quick task checklist switcher displaying task key badges (`DC-T1197`), status, task titles (`Installation`), assignees, and timer/priority indicators matching Screenshots 1 & 2.
+  - **Header Meta & Actions**: Task key badge, title editor, author (`Monica Hemsworth`), project link, reminder trigger (`🔔`), chat discussion (`💬`), attachments (`📎`), live timer (`⏱️`), dependency status (`-(1)`), info button (`ℹ️`), and top-right `...` popover (*Copy Link*, *Follow Task*, *Associate Blueprint*, *Execute Macro Rule*, *Delete Task*).
+  - **Status & Blueprint Banner**: Current status dropdown (`Open 🔒`), next transition action button (`D&P analysis`), and blueprint preview link (`Budget Approval Process`).
+  - **Full Sub-Tabs Bar**: `Comments`, `Subtasks`, `Log Hours (06:02)`, `Documents`, `Invoices`, `Forums`, `Dependency (1)`, `Issues`.
+  - **Email Comment Alias**: Red highlighted link **`To add Task Comment via email 📋`** opening dialog with task email alias (`task-dc-t1197@reply.taskpmp.app`) and direct email posting.
+  - **Default Task Information Fields**: `Associated Team` badges, `Owner` pills, `Work Hours`, `Status` dropdown, `Start Date`, `Due Date`, `Duration` (validated <= 10 yrs), `Priority`, `Completion Percentage`, `Tags`, `Reminder` modal (*Daily*, *On a Date*, *Before a Date*, *After a Date*), `Recurrence`, and `Billing Type`.
+  - **Recurring Tasks Schedule & Manage Fields Modal (`task-detail-drawer.tsx`)**:
+    - **Recurrence Popover**: Schedule repeat rules (*Daily*, *Weekly*, *Monthly*, *Yearly*, *After*), reference fields (*Due Date*, *Start Date*, *Schedule*), intervals, end conditions (*On date*, *After instances*, *Never*), holiday handling (*Execute on previous working day*, *Execute on next working day*, *Skip holiday*), and triggers (*On Completion*, *On Schedule*, *First to Occur*) with mini-calendar preview matching Screenshot 1.
+    - **Manage Fields for Recurring Task Modal**: Red highlighted link **`Manage fields for recurring task (N)`** opening modal matching Screenshot 2 to include/exclude *Comments*, *Subtasks*, *Billing Type*, *Followers*, *Description*, *Tags*, *Attachments*, and *Associated Teams*.
+  - **Task Reminders Popover & Modal (`task-detail-drawer.tsx`)**:
+    - Reminder type selector (*Before*, *After*, *On due date*, *On a Date*), interval counter & unit (*days*, *hours*), reference field (*Due Date*, *Start Date*, *Created Date*), time picker, multi-select user/team pills, and **`Create mail template`** red link trigger matching Screenshot 3.
+  - **Standard & Flexible Work Hours**: Supports planned work hours per day, work % per day, total work hours, and flexible custom daily allocations across task schedules.
+  - **File Annotation & Attachment Upload**: Document tab with **`Annotate File 📝`** markup canvas modal and multi-cloud source tabs matching Screenshot 3.
+  - **Associate Blueprint & Issues Modals**: Blueprint mapping popover matching Screenshot 4, and Issue association modal.
 - **Collaboration Hub & Knowledge Base (`collaboration/page.tsx` & `kb/page.tsx`)**:
   - **Team Status Feed**: Live announcements, post publishing, team updates, tags, likes, and comment replies.
   - **Project Discussion Forums**: Categorized discussion topics (*Technical & Architecture*, *Client Delivery*, *General*), replies count, view counts, and topic creation modal.
@@ -98,6 +113,12 @@
   - **Auto Sequential Project Key**: Opening `+ New Project` calculates the highest existing project key (`DT-31`) and automatically pre-fills the `Project Prefix / ID (Key)` field with the next sequential ID (e.g. `DT-32` or `DT-01`, `DT-02` sequentially).
   - **Fail-safe Creation Flow**: Clicking `Save Project` performs full validation, sends project data to `/api/projects` POST endpoint, and immediately creates/adds the new project to the top of the Projects table with success toast notification (`Project '[name]' created successfully!`).
   - **Dual Persistence & Blank Project Isolation**: Project entries persist in Prisma database (`Project` model) and `localStorage.setItem("user_custom_projects", ...)`, guaranteeing newly created projects start with clean empty task lists (`0 tasks`, `0% progress`, `+$0 budget surplus`) and preserve custom Task Lists (`custom_task_lists`) created via `New Task List` modal.
+- **Task Layouts & Fields Customization (`settings/page.tsx`)**:
+  - **New Fields Palette**: Full drag-and-drop palette (`Single-Line`, `Multi-Line`, `Pick List`, `Multi Select`, `User Pick List`, `Multi User`, `Date`, `Date & Time`, `Checkbox`, `Currency`, `Percentage`, `Number`, `Decimal`, `Formula`, `Email`, `Phone`, `URL`) with `+ Add Section` button and remaining fields counter (`Remaining Fields: 254`).
+  - **Associated Team Field**: Removable default field highlighted in red on Task Information layout canvas matching Screenshot 1, with multi-team assignment across task details, list/kanban views, and bulk actions.
+- **Task Automation Email Templates & Alerts (`settings/page.tsx`)**:
+  - **Create Email Template**: Template builder matching Screenshot 2 with Organization Name (`Digital Twin Solutions`), Layout Name selector, Subject placeholder insert dropdown (`${Task.Associated_Team}`, `${Task.Name}`, `${Task.Number}`, `${Task.Due_Date}`, `${Task.Owner}`), and rich text body editor.
+  - **Email Alerts**: Automated email triggers with `Associated Team` recipient notifications.
 - **Portal Configuration (`settings/page.tsx`)**:
   - **Portal Profile**: Header displaying organization name (`Digital Twin Solutions`), logo badge, Time Zone (`Asia/Kolkata`), Business Hours (`Standard Business Hours`), Email Encoding (`UTF-8`), and Web Address (`https://taskpmp.app`).
   - **Portal URL Change**: Interactive portal URL slug manager (`https://taskpmp.app/portal/digitaltwin`), slug edit input, `[ Save URL ]` button, redirect warning note, and Admin permission indicator.
