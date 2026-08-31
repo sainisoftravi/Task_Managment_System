@@ -295,13 +295,13 @@ export default function CreateTaskModal({
           </div>
         </div>
 
-        {/* Modal Bottom Action Bar matching Screenshot 2 */}
+        {/* Modal Bottom Action Bar matching Screenshot 1 */}
         <div className="flex items-center gap-2 px-6 py-3 border-t border-slate-200 bg-slate-50">
           <button
             type="button"
             onClick={() => handleSubmit(false)}
             disabled={!taskName.trim()}
-            className="rounded-md bg-[#0070BA] px-5 py-2 text-xs font-bold text-white hover:bg-blue-700 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="rounded-md bg-orange-500 hover:bg-orange-600 px-6 py-2 text-xs font-bold text-white shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             Add
           </button>
@@ -309,14 +309,14 @@ export default function CreateTaskModal({
             type="button"
             onClick={() => handleSubmit(true)}
             disabled={!taskName.trim()}
-            className="rounded-md border border-[#0070BA] bg-white px-5 py-2 text-xs font-bold text-[#0070BA] hover:bg-blue-50 shadow-2xs disabled:opacity-50 cursor-pointer"
+            className="rounded-md border border-orange-400 bg-white px-5 py-2 text-xs font-bold text-orange-600 hover:bg-orange-50 shadow-2xs disabled:opacity-50 cursor-pointer"
           >
             Add More
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-slate-300 bg-white px-5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
+            className="rounded-md border border-orange-400 bg-white px-5 py-2 text-xs font-bold text-orange-600 hover:bg-orange-50 cursor-pointer"
           >
             Cancel
           </button>

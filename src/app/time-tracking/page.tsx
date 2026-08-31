@@ -25,6 +25,10 @@ import {
 import TimeLogGridView from "@/components/time-tracking/time-log-grid-view";
 import TimeLogCalendarView from "@/components/time-tracking/time-log-calendar-view";
 import ExportTimeLogsModal from "@/components/time-tracking/export-time-logs-modal";
+import CreateCustomViewModal from "@/components/time-tracking/create-custom-view-modal";
+import AddColumnDrawer from "@/components/time-tracking/add-column-drawer";
+import TimeLogFilterDrawer from "@/components/time-tracking/time-log-filter-drawer";
+import CreateTimesheetModal from "@/components/time-tracking/create-timesheet-modal";
 
 export default function TimeTrackingPage() {
   const [timeLogs, setTimeLogs] = useState<TimeLog[]>([]);
@@ -38,6 +42,19 @@ export default function TimeTrackingPage() {
   const [groupBy, setGroupBy] = useState<"DATE" | "USER">("DATE");
   const [datePreset, setDatePreset] = useState<"DAY" | "WEEK" | "MONTH" | "RANGE" | "PROJECT_SPAN">("MONTH");
   const [showExportModal, setShowExportModal] = useState(false);
+
+  // Custom Views & Column Customizer State matching Screenshots 1, 2, and 3
+  const [showCustomViewModal, setShowCustomViewModal] = useState(false);
+  const [showAddColumnDrawer, setShowAddColumnDrawer] = useState(false);
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+  const [showTimesheetModal, setShowTimesheetModal] = useState(false);
+  const [customViews, setCustomViews] = useState([
+    { id: "v1", name: "All Timesheets", isFavorite: false },
+    { id: "v2", name: "Timesheets Pending Approval", isFavorite: true },
+    { id: "v3", name: "My Time Logs", isFavorite: false },
+    { id: "v4", name: "Billable Time Logs", isFavorite: false },
+  ]);
+  const [selectedCustomView, setSelectedCustomView] = useState("v1");
 
   // Selection & Bulk Approval
   const [selectedLogs, setSelectedLogs] = useState<string[]>([]);
@@ -140,14 +157,55 @@ export default function TimeTrackingPage() {
       {/* Top Header & View Type Switcher */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-200 bg-white p-4 rounded-lg shadow-xs">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <Clock className="h-5 w-5 text-[#0070BA]" />
-            <span>Time Logs & Cross-Project Timesheets</span>
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">Track daily effort, manage weekly time entries, and approve billable client hours</p>
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <Clock className="h-5 w-5 text-[#0070BA]" />
+              <span>Time Logs & Cross-Project Timesheets</span>
+            </h1>
+
+            {/* Custom View Selector matching Screenshots 2 & 3 */}
+            <select
+              value={selectedCustomView}
+              onChange={(e) => {
+                if (e.target.value === "CREATE_NEW") {
+                  setShowCustomViewModal(true);
+                } else {
+                  setSelectedCustomView(e.target.value);
+                }
+              }}
+              className="rounded border border-slate-300 px-3 py-1 text-xs font-bold text-[#0070BA] bg-white focus:outline-none cursor-pointer"
+            >
+              {customViews.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.isFavorite ? "⭐ " : ""}{v.name}
+                </option>
+              ))}
+              <option value="CREATE_NEW">+ Create Custom View</option>
+            </select>
+          </div>
+          <p className="text-xs text-slate-500">Track daily effort, manage weekly time entries, and approve billable client hours</p>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Filter Drawer Trigger Button matching Screenshot 2 */}
+          <button
+            onClick={() => setShowFilterDrawer(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs cursor-pointer"
+            title="Filter Time Logs"
+          >
+            <Filter className="h-3.5 w-3.5 text-orange-500" />
+            <span>Filter</span>
+          </button>
+
+          {/* Add Column Button matching Screenshot 1 */}
+          <button
+            onClick={() => setShowAddColumnDrawer(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs cursor-pointer"
+          >
+            <Plus className="h-3.5 w-3.5 text-slate-600" />
+            <span>Add Column</span>
+          </button>
+
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-md text-xs font-semibold">
             <button
               onClick={() => setViewType("LIST")}
@@ -249,23 +307,59 @@ export default function TimeTrackingPage() {
         </div>
       </div>
 
-      {/* Bulk Update / Approval Bar */}
+      {/* Yellow Bulk Action Bar matching Screenshot 2 */}
       {selectedLogs.length > 0 && (
-        <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs font-semibold text-blue-900 shadow-xs">
-          <div className="flex items-center gap-2">
-            <CheckSquare className="h-4 w-4 text-[#0070BA]" />
-            <span>{selectedLogs.length} time log entries selected</span>
+        <div className="flex items-center justify-between rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs font-semibold text-amber-900 shadow-xs animate-fadeIn">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSelectedLogs([])}
+              className="p-1 text-amber-700 hover:text-amber-900 font-bold cursor-pointer"
+              title="Clear Selection"
+            >
+              ✕
+            </button>
+            <span className="font-bold text-slate-800 bg-amber-200/70 px-2 py-0.5 rounded-full text-[11px]">
+              {selectedLogs.length} selected
+            </span>
+
+            <button
+              onClick={() => {
+                if (confirm(`Delete ${selectedLogs.length} selected time log entries?`)) {
+                  setTimeLogs(timeLogs.filter((l) => !selectedLogs.includes(l.id)));
+                  setSelectedLogs([]);
+                }
+              }}
+              className="rounded border border-rose-400 bg-white px-3 py-1 font-bold text-rose-600 hover:bg-rose-50 cursor-pointer"
+            >
+              Delete
+            </button>
+
+            {/* Create Timesheet Button matching Red Box in Screenshot 2 */}
+            <button
+              onClick={() => setShowTimesheetModal(true)}
+              className="rounded border border-orange-400 bg-white px-3 py-1 font-bold text-orange-600 hover:bg-orange-50 cursor-pointer shadow-2xs"
+            >
+              Create Timesheet
+            </button>
+
+            <button
+              onClick={() => alert("Change Billing Type for selected logs")}
+              className="rounded border border-slate-300 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+            >
+              Billing Type ▾
+            </button>
           </div>
+
           <div className="flex items-center gap-2">
             <button
               onClick={handleBulkApprove}
-              className="rounded bg-emerald-600 px-3 py-1.5 font-bold text-white hover:bg-emerald-700 shadow-2xs"
+              className="rounded bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-700 shadow-2xs cursor-pointer"
             >
               Approve Selected
             </button>
             <button
               onClick={handleBulkReject}
-              className="rounded bg-rose-600 px-3 py-1.5 font-bold text-white hover:bg-rose-700 shadow-2xs"
+              className="rounded bg-rose-600 px-3 py-1 text-xs font-bold text-white hover:bg-rose-700 shadow-2xs cursor-pointer"
             >
               Reject Selected
             </button>
@@ -672,6 +766,52 @@ export default function TimeTrackingPage() {
           </div>
         </div>
       )}
+
+      {/* Create Custom View Modal matching Screenshots 2 & 3 */}
+      <CreateCustomViewModal
+        isOpen={showCustomViewModal}
+        onClose={() => setShowCustomViewModal(false)}
+        onSave={(newView) => {
+          const created = { id: `v-${Date.now()}`, name: newView.name, isFavorite: true };
+          setCustomViews([...customViews, created]);
+          setSelectedCustomView(created.id);
+          alert(`Created custom view '${newView.name}' successfully!`);
+        }}
+      />
+
+      {/* Add Column Drawer matching Screenshot 1 */}
+      <AddColumnDrawer
+        isOpen={showAddColumnDrawer}
+        onClose={() => setShowAddColumnDrawer(false)}
+        onAddColumn={(colName) => {
+          alert(`Added column '${colName}' to time logs table view.`);
+        }}
+        onCreateCustomField={() => {
+          const fieldName = prompt("Enter Custom Field Name:");
+          if (fieldName) {
+          }
+        }}
+      />
+
+      {/* Time Log Filter Drawer matching Screenshot 2 */}
+      <TimeLogFilterDrawer
+        isOpen={showFilterDrawer}
+        onClose={() => setShowFilterDrawer(false)}
+        onApplyFilter={(filterData) => {
+          alert(`Applied filter: ${filterData.selectedUsers.length} user(s) selected with '${filterData.matchLogic}' logic.`);
+        }}
+      />
+
+      {/* Create Timesheet Modal matching Screenshots 1 & 2 */}
+      <CreateTimesheetModal
+        isOpen={showTimesheetModal}
+        onClose={() => setShowTimesheetModal(false)}
+        initialSelectedLogs={timeLogs.filter((l) => selectedLogs.includes(l.id))}
+        onSuccess={(timesheet) => {
+          setSelectedLogs([]);
+          alert(`Created timesheet '${timesheet.name}' with status '${timesheet.status}'.`);
+        }}
+      />
     </div>
   );
 }

@@ -28,6 +28,7 @@ import {
   Search,
   Plus,
   Copy,
+  CheckCircle2,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -37,8 +38,9 @@ const mainNavItems = [
   { name: "Home", href: "/dashboard", icon: LayoutDashboard },
   { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "Projects", href: "/projects", icon: Briefcase },
-  { name: "Users", href: "/users", icon: UsersIcon },
   { name: "Collaboration", href: "/kb", icon: MessageSquare },
+  { name: "My Approvals", href: "/my-approvals", icon: CheckCircle2 },
+  { name: "Users", href: "/users", icon: UsersIcon },
 ];
 
 const overviewItems = [
@@ -235,8 +237,19 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           )}
         </div>
 
-        {/* User Footer */}
-        <div className="mt-auto border-t border-slate-800/80 p-3">
+        {/* User Footer matching Screenshot 1 */}
+        <div className="mt-auto border-t border-slate-800/80 p-3 space-y-2">
+          <Link
+            href="/users?invite=true"
+            className={cn(
+              "flex w-full items-center justify-center gap-2 rounded-md bg-slate-800 border border-slate-700 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer shadow-xs",
+              collapsed ? "px-0" : ""
+            )}
+          >
+            <UsersIcon className="h-4 w-4 text-[#0070BA]" />
+            {!collapsed && <span>Invite Users</span>}
+          </Link>
+
           <button
             onClick={logout}
             className={cn(

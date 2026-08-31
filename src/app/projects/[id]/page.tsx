@@ -29,6 +29,8 @@ import ProjectPhasesTab from "@/components/projects/project-phases-tab";
 import ProjectIssuesTab from "@/components/projects/project-issues-tab";
 import ProjectForumsTab from "@/components/projects/project-forums-tab";
 import ProjectUsersTab from "@/components/projects/project-users-tab";
+import CreateTaskListModal from "@/components/projects/create-task-list-modal";
+import TaskListChartView from "@/components/projects/task-list-chart-view";
 
 export default function ProjectOverviewPage() {
   const params = useParams<{ id: string }>();
@@ -39,8 +41,9 @@ export default function ProjectOverviewPage() {
   const [taskLists, setTaskLists] = useState<TaskList[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "tasks" | "users" | "reports" | "documents" | "phases" | "issues" | "forums" | "time-logs">("tasks");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "tasks" | "users" | "reports" | "documents" | "phases" | "issues" | "forums" | "time-logs" | "task-list" | "milestones">("tasks");
   const [viewMode, setViewMode] = useState<"list" | "kanban" | "gantt" | "wbs">("list");
+  const [showCreateTaskListModal, setShowCreateTaskListModal] = useState(false);
 
   const headers = getAuthHeaders();
 
@@ -152,6 +155,22 @@ export default function ProjectOverviewPage() {
             }`}
           >
             Issues
+          </button>
+          <button
+            onClick={() => setActiveTab("task-list")}
+            className={`pb-2.5 transition-colors border-b-2 ${
+              activeTab === "task-list" ? "border-[#0070BA] text-[#0070BA]" : "border-transparent text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            Task List
+          </button>
+          <button
+            onClick={() => setActiveTab("milestones")}
+            className={`pb-2.5 transition-colors border-b-2 ${
+              activeTab === "milestones" ? "border-[#0070BA] text-[#0070BA]" : "border-transparent text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            Milestones
           </button>
           <button
             onClick={() => setActiveTab("documents")}
@@ -308,6 +327,43 @@ export default function ProjectOverviewPage() {
       {activeTab === "users" && (
         <ProjectUsersTab project={project} />
       )}
+
+      {activeTab === "task-list" && (
+        <div className="space-y-6 font-sans">
+          <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-xs text-xs">
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Task Lists & Milestone Progress</h3>
+              <p className="text-xs text-slate-500">Group tasks by milestones, manage internal/external flags, and monitor completion progress</p>
+            </div>
+
+            <button
+              onClick={() => setShowCreateTaskListModal(true)}
+              className="rounded-md bg-orange-500 hover:bg-orange-600 px-4 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
+            >
+              + Add Task List
+            </button>
+          </div>
+
+          <TaskListChartView />
+
+          <ListView
+            tasks={tasks}
+            taskLists={taskLists}
+            headers={headers}
+            onTaskClick={handleTaskClick}
+            onAddTask={handleAddTask}
+          />
+        </div>
+      )}
+
+      {/* Create Task List Modal */}
+      <CreateTaskListModal
+        isOpen={showCreateTaskListModal}
+        onClose={() => setShowCreateTaskListModal(false)}
+        onSuccess={(newList) => {
+          setTaskLists([...taskLists, newList]);
+        }}
+      />
 
       {activeTab === "time-logs" && (
         <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-xs">

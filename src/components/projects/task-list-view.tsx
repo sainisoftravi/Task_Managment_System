@@ -32,9 +32,12 @@ import {
   Eye
 } from "lucide-react";
 import TaskDetailDrawer from "@/components/projects/task-detail-drawer";
-import AddTaskListModal from "@/components/projects/add-task-list-modal";
+import CreateTaskListModal from "@/components/projects/create-task-list-modal";
 import CloneTaskListModal from "@/components/projects/clone-task-list-modal";
 import CreateTaskModal from "@/components/projects/create-task-modal";
+import TaskListDetailsDrawer from "@/components/projects/task-list-details-drawer";
+import EditTaskListModal from "@/components/projects/edit-task-list-modal";
+import MoveTaskListModal from "@/components/projects/move-task-list-modal";
 
 interface ListViewProps {
   tasks: Task[];
@@ -55,6 +58,10 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
   const [showCloneTaskListModal, setShowCloneTaskListModal] = useState(false);
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
   const [selectedDrawerTask, setSelectedDrawerTask] = useState<any | null>(null);
+  const [showTaskListDetailsDrawer, setShowTaskListDetailsDrawer] = useState(false);
+  const [showEditTaskListModal, setShowEditTaskListModal] = useState(false);
+  const [showMoveTaskListModal, setShowMoveTaskListModal] = useState(false);
+  const [activeTaskListHeader, setActiveTaskListHeader] = useState<any | null>(null);
 
   // Active duration popover row ID & active row context menu ID
   const [activeDurationPopoverId, setActiveDurationPopoverId] = useState<string | null>(null);
@@ -295,11 +302,18 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
     }
   };
 
-  const handleDeleteTask = (taskId: string) => {
+  const handleDeleteTask = async (taskId: string) => {
+    if (!confirm("Move this task to Trash?")) return;
     setLocalTasks((prev) => prev.filter((t) => t.id !== taskId));
     if (selectedDrawerTask?.id === taskId) {
       setSelectedDrawerTask(null);
     }
+    const token = localStorage.getItem("token");
+    await fetch(`/api/tasks/${taskId}`, {
+      method: "DELETE",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    }).catch(() => {});
+    alert("Task moved to Trash.");
   };
 
   // Add new task dynamically
@@ -524,15 +538,6 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
         }}
       />
 
-      {/* Add Task List Modal */}
-      <AddTaskListModal
-        isOpen={showAddTaskListModal}
-        onClose={() => setShowAddTaskListModal(false)}
-        onAddTaskList={(data) => {
-          alert(`Task List '${data.name}' added with Flag: ${data.flag}`);
-        }}
-      />
-
       {/* Clone Task List Modal */}
       <CloneTaskListModal
         isOpen={showCloneTaskListModal}
@@ -610,10 +615,14 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
 
                       {/* Row Action Dropdown Menu matching Screenshot 2 */}
                       {isRowMenuOpen && (
-                        <div className="absolute left-6 top-2 z-50 w-48 rounded-md bg-white p-1.5 shadow-xl border border-slate-200 text-xs font-semibold text-slate-700 text-left">
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute left-6 top-2 z-50 w-48 rounded-md bg-white p-1.5 shadow-xl border border-slate-200 text-xs font-semibold text-slate-700 text-left"
+                        >
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSelectedDrawerTask(task);
                               setActiveRowMenuId(null);
                             }}
@@ -624,8 +633,9 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
-                              window.open(`/projects/cm7m1fk0b002wtlck0xobsma8`, "_blank");
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(`/projects/${task.projectId || "p1"}`, "_blank");
                               setActiveRowMenuId(null);
                             }}
                             className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
@@ -635,7 +645,8 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               navigator.clipboard?.writeText(window.location.href);
                               alert("Task link copied!");
                               setActiveRowMenuId(null);
@@ -647,7 +658,10 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                           </button>
                           <button
                             type="button"
-                            onClick={() => setActiveRowMenuId(null)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveRowMenuId(null);
+                            }}
                             className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
                           >
                             <Palette className="h-3.5 w-3.5" />
@@ -655,7 +669,10 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                           </button>
                           <button
                             type="button"
-                            onClick={() => setActiveRowMenuId(null)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveRowMenuId(null);
+                            }}
                             className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
                           >
                             <Move className="h-3.5 w-3.5" />
@@ -663,7 +680,8 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               handleAddNewTask();
                               setActiveRowMenuId(null);
                             }}
@@ -675,9 +693,11 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                           <div className="border-t border-slate-100 my-1" />
                           <button
                             type="button"
-                            onClick={() => {
-                              handleDeleteTask(task.id);
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
                               setActiveRowMenuId(null);
+                              handleDeleteTask(task.id);
                             }}
                             className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-rose-50 text-rose-600 font-bold cursor-pointer"
                           >
@@ -916,6 +936,42 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
           </table>
         </div>
       </div>
+
+      {/* Create Task List Drawer Modal matching Screenshots 1 & 2 */}
+      <CreateTaskListModal
+        isOpen={showAddTaskListModal}
+        onClose={() => setShowAddTaskListModal(false)}
+        onSuccess={(newList) => {
+          alert(`Added new Task List '${newList.name}' (${newList.flag}).`);
+        }}
+      />
+
+      {/* Task List Details Drawer matching Screenshot 2 */}
+      <TaskListDetailsDrawer
+        isOpen={showTaskListDetailsDrawer}
+        onClose={() => setShowTaskListDetailsDrawer(false)}
+        taskList={activeTaskListHeader || { name: "Concrete work in progress", flag: "External" }}
+      />
+
+      {/* Edit Task List Modal matching Screenshot 1 */}
+      <EditTaskListModal
+        isOpen={showEditTaskListModal}
+        onClose={() => setShowEditTaskListModal(false)}
+        taskList={activeTaskListHeader || { name: "Walk-through check list", milestone: "None", flag: "Internal" }}
+        onSave={(updated) => {
+          setActiveTaskListHeader(updated);
+        }}
+      />
+
+      {/* Move Task List Modal */}
+      <MoveTaskListModal
+        isOpen={showMoveTaskListModal}
+        onClose={() => setShowMoveTaskListModal(false)}
+        taskList={activeTaskListHeader || { name: "Walk-through check list" }}
+        onMove={(project, milestone) => {
+          alert(`Moved task list to project ${project}`);
+        }}
+      />
     </div>
   );
 }

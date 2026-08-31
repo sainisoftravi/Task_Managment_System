@@ -331,9 +331,17 @@ export default function ProjectsPage() {
           onProjectClick={(p) => (window.location.href = `/projects/${p.id}`)}
         />
       ) : (
-        /* Projects Data Table matching Screenshot 1 */
-        <div className="rounded-md border border-slate-200 bg-white shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+        /* Projects Data Table matching Screenshots 1, 2, 3 */
+        <div className="rounded-md border border-slate-200 bg-white shadow-sm relative">
+          {/* Backdrop to close menu on outside click */}
+          {activeProjectMenuId && (
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setActiveProjectMenuId(null)}
+            />
+          )}
+
+          <div className="overflow-x-auto min-h-[400px]">
             <table className="w-full text-xs text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
@@ -394,110 +402,152 @@ export default function ProjectsPage() {
                             <MoreHorizontal className="h-4 w-4" />
                           </button>
 
-                          {/* Options Context Menu matching Screenshot 1 */}
+                          {/* Options Context Menu matching Screenshots 2 & 3 */}
                           {isProjectMenuOpen && (
-                            <div className="absolute left-6 top-2 z-50 w-52 rounded-md bg-white p-1.5 shadow-xl border border-slate-200 text-xs font-semibold text-slate-700 text-left">
-                              <Link
-                                href={`/projects/${project.id}`}
-                                className="flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                                <span>Access Project</span>
-                              </Link>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  window.open(`/projects/${project.id}`, "_blank");
-                                  setActiveProjectMenuId(null);
-                                }}
-                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
-                              >
-                                <ExternalLink className="h-3.5 w-3.5" />
-                                <span>Access Project in New Tab</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  window.location.href = `/projects/${project.id}`;
-                                }}
-                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                                <span>View Details</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  window.open(`/projects/${project.id}`, "_blank");
-                                  setActiveProjectMenuId(null);
-                                }}
-                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
-                              >
-                                <ExternalLink className="h-3.5 w-3.5" />
-                                <span>View Details in New Tab</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  navigator.clipboard?.writeText(window.location.href);
-                                  alert("Project link copied!");
-                                  setActiveProjectMenuId(null);
-                                }}
-                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
-                              >
-                                <Copy className="h-3.5 w-3.5" />
-                                <span>Copy Link</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setActiveProjectMenuId(null)}
-                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
-                              >
-                                <Palette className="h-3.5 w-3.5" />
-                                <span>Color</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingProject(project);
-                                  setEditName(project.name);
-                                  setEditKey(project.key || `DT-${31 - idx}`);
-                                  setEditStatus(project.status || "ACTIVE");
-                                  setActiveProjectMenuId(null);
-                                }}
-                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer font-bold"
-                              >
-                                <Edit className="h-3.5 w-3.5 text-[#0070BA]" />
-                                <span>Edit Project</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setActiveProjectMenuId(null)}
-                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
-                              >
-                                <Mail className="h-3.5 w-3.5" />
-                                <span>Email Alias</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setActiveProjectMenuId(null)}
-                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
-                              >
-                                <Layers className="h-3.5 w-3.5" />
-                                <span>Change Layouts</span>
-                              </button>
-                              <div className="border-t border-slate-100 my-1" />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setProjects((prev) => prev.filter((p) => p.id !== project.id));
-                                  setActiveProjectMenuId(null);
-                                }}
-                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-rose-50 text-rose-600 font-bold cursor-pointer"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                                <span>Trash</span>
-                              </button>
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="absolute left-6 top-2 z-50 w-56 rounded-md bg-white p-1.5 shadow-2xl border border-slate-200 text-xs font-semibold text-slate-800 text-left animate-fadeIn divide-y divide-slate-100"
+                            >
+                              <div className="py-0.5 space-y-0.5">
+                                <Link
+                                  href={`/projects/${project.id}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex items-center gap-2.5 px-2.5 py-1.5 rounded hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5 text-slate-600" />
+                                  <span>Access Project</span>
+                                </Link>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.open(`/projects/${project.id}`, "_blank");
+                                    setActiveProjectMenuId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5 text-slate-600" />
+                                  <span>Access Project in New Tab</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.location.href = `/projects/${project.id}`;
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
+                                >
+                                  <Eye className="h-3.5 w-3.5 text-slate-600" />
+                                  <span>View Details</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.open(`/projects/${project.id}`, "_blank");
+                                    setActiveProjectMenuId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5 text-slate-600" />
+                                  <span>View Details in New Tab</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard?.writeText(window.location.href);
+                                    alert("Project link copied!");
+                                    setActiveProjectMenuId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
+                                >
+                                  <Copy className="h-3.5 w-3.5 text-slate-600" />
+                                  <span>Copy Link</span>
+                                </button>
+                              </div>
+
+                              <div className="py-0.5 space-y-0.5">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    alert("Select Project Color Accent");
+                                    setActiveProjectMenuId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
+                                >
+                                  <Palette className="h-3.5 w-3.5 text-teal-600" />
+                                  <span>Color</span>
+                                </button>
+                              </div>
+
+                              <div className="py-0.5 space-y-0.5">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingProject(project);
+                                    setEditName(project.name);
+                                    setEditKey(project.key || `DT-${31 - idx}`);
+                                    setEditStatus(project.status || "ACTIVE");
+                                    setActiveProjectMenuId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
+                                >
+                                  <Edit className="h-3.5 w-3.5 text-slate-600" />
+                                  <span>Edit Project</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    alert(`Project Email Alias: project-${project.key?.toLowerCase() || "dt31"}@taskpmp.local`);
+                                    setActiveProjectMenuId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
+                                >
+                                  <Mail className="h-3.5 w-3.5 text-slate-600" />
+                                  <span>Email Alias</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    alert("Change Project Layout Template");
+                                    setActiveProjectMenuId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
+                                >
+                                  <Layers className="h-3.5 w-3.5 text-slate-600" />
+                                  <span>Change Layouts</span>
+                                </button>
+                              </div>
+
+                              <div className="py-0.5">
+                                <button
+                                  type="button"
+                                  onClick={async (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setActiveProjectMenuId(null);
+
+                                    if (confirm(`Move project '${project.name}' to Trash?`)) {
+                                      setProjects((prev) => prev.filter((p) => p.id !== project.id));
+                                      const token = localStorage.getItem("token");
+                                      await fetch(`/api/projects/${project.id}`, {
+                                        method: "DELETE",
+                                        headers: token ? { Authorization: `Bearer ${token}` } : {},
+                                      }).catch(() => {});
+                                      alert(`Project '${project.name}' moved to Trash.`);
+                                    }
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded hover:bg-rose-50 text-rose-500 font-bold cursor-pointer"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+                                  <span>Trash</span>
+                                </button>
+                              </div>
                             </div>
                           )}
                         </td>

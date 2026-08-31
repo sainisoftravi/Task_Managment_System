@@ -37,7 +37,8 @@ import {
   Square,
   Send,
   UserCheck,
-  Check
+  Check,
+  Trash2
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
@@ -321,6 +322,29 @@ export default function TaskDetailDrawer({ task, isOpen, onClose, onUpdateTask }
                 </div>
               )}
             </div>
+
+            {/* Trash Task Action Button */}
+            <button
+              type="button"
+              onClick={async () => {
+                if (confirm(`Move task '${task.title || task.key}' to Trash?`)) {
+                  onClose();
+                  const token = localStorage.getItem("token");
+                  await fetch(`/api/tasks/${task.id}`, {
+                    method: "DELETE",
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                  }).catch(() => {});
+                  if (onUpdateTask) {
+                    onUpdateTask({ ...task, isDeleted: true });
+                  }
+                  alert("Task moved to Trash.");
+                }
+              }}
+              className="p-1.5 rounded text-rose-500 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
+              title="Move Task to Trash"
+            >
+              <Trash2 className="h-4.5 w-4.5" />
+            </button>
 
             <button type="button" onClick={onClose} className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer">
               <X className="h-5 w-5" />

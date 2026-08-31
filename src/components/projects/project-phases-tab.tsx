@@ -5,6 +5,8 @@ import { Project, Milestone } from "@/types";
 import { Layers, Plus, Calendar, CheckCircle2, User, Clock } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
+import MilestoneDetailsDrawer from "@/components/projects/milestone-details-drawer";
+
 interface ProjectPhasesTabProps {
   project: Project;
   milestones?: Milestone[];
@@ -12,6 +14,7 @@ interface ProjectPhasesTabProps {
 
 export default function ProjectPhasesTab({ project, milestones = [] }: ProjectPhasesTabProps) {
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedMilestoneDrawer, setSelectedMilestoneDrawer] = useState<any | null>(null);
 
   const samplePhases = [
     { name: "Pre-Construction & Research Phase", dri: "Divakar Pandiy", status: "Completed", progress: 100, startDate: "2026-01-15", endDate: "2026-03-30", tasksCount: 12 },
@@ -55,11 +58,15 @@ export default function ProjectPhasesTab({ project, milestones = [] }: ProjectPh
           </thead>
           <tbody className="divide-y divide-slate-100">
             {samplePhases.map((phase, idx) => (
-              <tr key={idx} className="hover:bg-slate-50 transition-colors">
+              <tr
+                key={idx}
+                onClick={() => setSelectedMilestoneDrawer(phase)}
+                className="hover:bg-slate-50 transition-colors cursor-pointer"
+              >
                 <td className="py-3.5 px-4 font-bold text-slate-800">
                   <div className="flex items-center gap-2">
                     <Layers className="h-4 w-4 text-[#0070BA]" />
-                    <span>{phase.name}</span>
+                    <span className="hover:text-[#0070BA] font-bold">{phase.name}</span>
                     <span className="text-[10px] text-slate-400 font-normal">({phase.tasksCount} Tasks)</span>
                   </div>
                 </td>
@@ -98,6 +105,13 @@ export default function ProjectPhasesTab({ project, milestones = [] }: ProjectPh
           </tbody>
         </table>
       </div>
+
+      {/* Milestone Details Drawer matching Screenshot 2 */}
+      <MilestoneDetailsDrawer
+        isOpen={!!selectedMilestoneDrawer}
+        onClose={() => setSelectedMilestoneDrawer(null)}
+        milestone={selectedMilestoneDrawer || { name: "Contracts and Agreements" }}
+      />
     </div>
   );
 }

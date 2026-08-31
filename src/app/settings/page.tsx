@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import ExportTimeLogsModal from "@/components/time-tracking/export-time-logs-modal";
 import {
   ArrowLeft,
   Search,
@@ -33,7 +34,7 @@ import {
 
 export default function SettingsPage() {
   const [activeCategory, setActiveCategory] = useState<
-    "PERSONAL_SETTINGS" | "PERSONAL_EMAIL" | "ACTIVITY_REMINDER" | "PORTAL_CONFIGURATION" | "PROFILES" | "ROLES"
+    "PERSONAL_SETTINGS" | "PERSONAL_EMAIL" | "ACTIVITY_REMINDER" | "PORTAL_CONFIGURATION" | "PROFILES" | "ROLES" | "SCHEDULE_EXPORT" | "TASK_TEMPLATES"
   >("PERSONAL_SETTINGS");
 
   const [sidebarSearch, setSidebarSearch] = useState("");
@@ -45,6 +46,17 @@ export default function SettingsPage() {
   const [displayMode, setDisplayMode] = useState<"Day" | "Night" | "Auto">("Auto");
   const [landingPage, setLandingPage] = useState("Home");
   const [userName, setUserName] = useState("Ravi Saini");
+
+  // Screenshot 3: Schedule Export State
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [setupSchedules, setSetupSchedules] = useState([
+    { id: "s1", name: "daily to weekly", active: true, projects: "active", lastRun: "27/11/2024 05:22 PM", nextRun: "03/12/2024 08:00 AM" },
+    { id: "s2", name: "test other user check", active: false, projects: "all", lastRun: "14/10/2024 04:23 PM", nextRun: "-" },
+    { id: "s3", name: "audit check", active: false, projects: "active", lastRun: "23/09/2024 12:10 PM", nextRun: "-" },
+    { id: "s4", name: "43regter", active: false, projects: "active", lastRun: "19/11/2024 07:30 PM", nextRun: "-" },
+    { id: "s5", name: "test 100", active: false, projects: "all", lastRun: "16/09/2024 07:30 PM", nextRun: "-" },
+    { id: "s6", name: "Export portal testing", active: true, projects: "active", lastRun: "09/09/2024 11:50 AM", nextRun: "01/12/2024 11:50 AM" },
+  ]);
 
   // Screenshot 2: Personal Email Notifications State
   const [taskNotifs, setTaskNotifs] = useState({
@@ -113,6 +125,7 @@ export default function SettingsPage() {
       items: [
         { id: "PERSONAL_EMAIL", label: "Personal Email" },
         { id: "ACTIVITY_REMINDER", label: "Activity Reminder" },
+        { id: "SCHEDULE_EXPORT", label: "Schedule Export" },
       ],
     },
     {
@@ -130,7 +143,10 @@ export default function SettingsPage() {
     },
     {
       group: "CUSTOMIZATION",
-      items: [{ id: "CUSTOMIZATION", label: "Custom Views & Templates" }],
+      items: [
+        { id: "TASK_TEMPLATES", label: "Task Templates" },
+        { id: "CUSTOMIZATION", label: "Custom Views & Templates" },
+      ],
     },
     {
       group: "AUTOMATION",
@@ -438,7 +454,9 @@ export default function SettingsPage() {
                             item.id === "ACTIVITY_REMINDER" ||
                             item.id === "PORTAL_CONFIGURATION" ||
                             item.id === "PROFILES" ||
-                            item.id === "ROLES"
+                            item.id === "ROLES" ||
+                            item.id === "SCHEDULE_EXPORT" ||
+                            item.id === "TASK_TEMPLATES"
                           ) {
                             setActiveCategory(item.id as any);
                           }
@@ -788,6 +806,170 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* SCHEDULE EXPORT SETUP PAGE matching Screenshot 3 */}
+          {activeCategory === "SCHEDULE_EXPORT" && (
+            <div className="space-y-4 font-sans text-xs">
+              <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Schedule Export &gt; Timesheet</h3>
+                  <p className="text-xs text-slate-500">Automate recurring timesheet exports and monitor execution logs</p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowScheduleModal(true)}
+                    className="rounded-md bg-orange-500 hover:bg-orange-600 px-4 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
+                  >
+                    Schedule Export
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs">
+                <table className="w-full text-xs text-left border-collapse font-sans">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold uppercase text-[11px]">
+                      <th className="py-3 px-4">SCHEDULE NAME</th>
+                      <th className="py-3 px-4 text-center">OFF/ON</th>
+                      <th className="py-3 px-4 text-center">RUN NOW</th>
+                      <th className="py-3 px-4">PROJECTS</th>
+                      <th className="py-3 px-4">LAST DAY RUN</th>
+                      <th className="py-3 px-4">NEXT RUN</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {setupSchedules.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-50">
+                        <td className="py-3 px-4 font-bold text-slate-900">{item.name}</td>
+                        <td className="py-3 px-4 text-center">
+                          <button
+                            onClick={() =>
+                              setSetupSchedules(
+                                setupSchedules.map((s) => (s.id === item.id ? { ...s, active: !s.active } : s))
+                              )
+                            }
+                            className={`w-10 h-5 flex items-center rounded-full p-0.5 transition-colors cursor-pointer mx-auto ${
+                              item.active ? "bg-orange-500" : "bg-slate-300"
+                            }`}
+                          >
+                            <div
+                              className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                                item.active ? "translate-x-5" : "translate-x-0"
+                              }`}
+                            />
+                          </button>
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <button
+                            onClick={() => {
+                              const nowStr = new Date().toLocaleString();
+                              setSetupSchedules(
+                                setupSchedules.map((s) => (s.id === item.id ? { ...s, lastRun: nowStr } : s))
+                              );
+                              alert(`Run Now triggered for '${item.name}'`);
+                            }}
+                            className="p-1 rounded text-orange-500 hover:bg-orange-50 cursor-pointer"
+                            title="Run Now"
+                          >
+                            <Clock className="h-4 w-4" />
+                          </button>
+                        </td>
+                        <td className="py-3 px-4 text-slate-700 font-mono">{item.projects}</td>
+                        <td className="py-3 px-4 font-mono text-slate-600 text-[11px]">
+                          {item.lastRun !== "-" ? `✓ ${item.lastRun}` : "-"}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-slate-600 text-[11px]">{item.nextRun}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <ExportTimeLogsModal
+                isOpen={showScheduleModal}
+                onClose={() => setShowScheduleModal(false)}
+                onExport={(data) => {
+                  alert(`Export scheduled successfully!`);
+                }}
+              />
+            </div>
+          )}
+
+          {/* SCREEN: TASK TEMPLATES matching Screenshot 3 */}
+          {activeCategory === "TASK_TEMPLATES" && (
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs space-y-6 font-sans">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Task Templates</h3>
+                  <p className="text-xs text-slate-500 font-medium">Manage pre-built task list templates and standard work items</p>
+                </div>
+
+                <button
+                  onClick={() => alert("Create Task List Template")}
+                  className="rounded bg-orange-500 hover:bg-orange-600 px-4 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
+                >
+                  Create a Task List Template
+                </button>
+              </div>
+
+              {/* Data Table matching Screenshot 3 */}
+              <div className="rounded-lg border border-slate-200 overflow-hidden">
+                <table className="w-full text-xs text-left border-collapse font-sans">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold uppercase text-[11px]">
+                      <th className="py-3 px-4">TITLE</th>
+                      <th className="py-3 px-4 w-36 text-center">START AFTER ⓘ</th>
+                      <th className="py-3 px-4 w-36 text-center">DURATION</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    <tr className="bg-slate-50/60 font-bold text-slate-900">
+                      <td className="py-2.5 px-4" colSpan={3}>
+                        ▾ New template
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-50">
+                      <td className="py-2.5 px-8 font-semibold text-slate-700">task 3</td>
+                      <td className="py-2.5 px-4 text-center font-mono text-slate-600">4 days</td>
+                      <td className="py-2.5 px-4 text-center font-mono text-slate-600">5 days</td>
+                    </tr>
+
+                    <tr className="bg-slate-50/60 font-bold text-slate-900">
+                      <td className="py-2.5 px-4 flex items-center justify-between" colSpan={3}>
+                        <span>▾ Concrete work</span>
+                        <button
+                          onClick={() => alert("Add Task to Concrete work template")}
+                          className="rounded border border-orange-400 bg-orange-50 px-2.5 py-1 text-[11px] font-bold text-orange-600 hover:bg-orange-100 cursor-pointer shadow-2xs"
+                        >
+                          + Add Task
+                        </button>
+                      </td>
+                    </tr>
+                    {[
+                      { title: "Termite treatment", start: "-", duration: "271 days" },
+                      { title: "Concrete Mix", start: "-", duration: "23 days" },
+                      { title: "Safety Unit Check", start: "-", duration: "66 days" },
+                      { title: "Pipelines layout", start: "-", duration: "308 days" },
+                      { title: "Ceramic Tile Check", start: "-", duration: "903 days" },
+                      { title: "Curing", start: "-", duration: "304 days" },
+                    ].map((item) => (
+                      <tr key={item.title} className="hover:bg-slate-50">
+                        <td className="py-2 px-8 font-semibold text-slate-700">{item.title}</td>
+                        <td className="py-2 px-4 text-center font-mono text-slate-500">{item.start}</td>
+                        <td className="py-2 px-4 text-center font-mono text-slate-600">{item.duration}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-slate-500 font-semibold pt-2">
+                <span>Total Template count: 66</span>
+                <span>1 - 10</span>
               </div>
             </div>
           )}

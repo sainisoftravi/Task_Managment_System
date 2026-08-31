@@ -7,6 +7,7 @@ import { OpenClosedChart } from "@/components/dashboard/open-closed-chart";
 import { PriorityDoughnutChart } from "@/components/dashboard/priority-doughnut-chart";
 import { ExportModal } from "@/components/reports/export-modal";
 import MyTimeLogsWidget from "@/components/dashboard/my-time-logs-widget";
+import MyPhasesWidget from "@/components/dashboard/my-phases-widget";
 
 interface DashboardData {
   slaStats: any[];
@@ -195,10 +196,19 @@ export default function DashboardPage() {
         assigneeData={assigneeBreakdown || []}
       />
 
+      {/* My Timesheet & My Phases Widgets matching User Screenshot */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <MyTimeLogsWidget
+          onLogTimeClick={() => (window.location.href = "/time-tracking")}
+          onWeeklyLogClick={() => (window.location.href = "/time-tracking")}
+          onExportClick={() => (window.location.href = "/time-tracking")}
+        />
+        <MyPhasesWidget />
+      </div>
+
       {activeTab === "personal" && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <MyTimeLogsWidget onLogTimeClick={() => window.location.href = "/time-tracking"} />
             <OverdueTasksSection tasks={data.overdueTasks} />
           </div>
         </div>

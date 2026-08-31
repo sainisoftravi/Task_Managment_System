@@ -62,6 +62,9 @@
 ---
 
 ### 4. 📋 Advanced Project & Task Management
+- **Project Row Options Menu (`...`)**:
+  - Full 10-item context menu window matching Screenshots 2 & 3: `Access Project`, `Access Project in New Tab`, `View Details`, `View Details in New Tab`, `Copy Link`, `Color`, `Edit Project`, `Email Alias`, `Change Layouts`, `Trash` (red text).
+  - Floating `z-50` window position over all table elements without container clipping (`min-h-[400px]` scroll buffer) with backdrop click-outside dismissal.
 
 #### Task Table Grid (`task-list-view.tsx`)
 - **Blank Task State for New Projects**: Newly created projects render a clean, blank task table with an empty state placeholder instead of leaking demo tasks.
@@ -70,7 +73,16 @@
 - **Duration Unit Selector Popover**: Interactive unit picker for `days` (work days), `hrs` (work hours), `cdays` (calendar days), `chrs` (calendar hours), and `mins` (minutes).
 - **Inline Editing**: Double-click or type directly in table cells to rename Task Names and Project Names in real time.
 - **Row Context Action Menus (`...`)**: Action menus for Tasks (*View Details, Copy Link, Color, Move, Clone, Trash*) and Projects (*Access Project, View Details, Copy Link, Color, Edit Project, Email Alias, Change Layouts, Trash*).
+- **Comprehensive Trash & Delete Engine**:
+  - **Task Row Menu**: `Trash` option in task table rows (`task-list-view.tsx`) triggers real `DELETE /api/tasks/${id}` API calls with confirmation dialogs and immediate UI state removal.
+  - **Task Detail Drawer**: Header `Trash` icon button (`task-detail-drawer.tsx`) next to close `X` allowing instant deletion when inspecting tasks.
+  - **Kanban Board Cards**: Hover `Trash` icon on Kanban cards (`kanban-board.tsx`) for quick deletion.
+  - **Milestone Task Lists**: `Trash` action in Milestone details drawer (`milestone-details-drawer.tsx`) for Task Lists.
 - **Group By Field Popover**: Group tasks dynamically by *Phases, Task List, Owner, Status, Dates, Priority, Tags, % Completion*.
+- **Interactive Kanban Drag & Drop Engine (`kanban-board.tsx`)**:
+  - **Status Normalization**: Automatic normalization mapping between database task statuses (`TODO`, `IN_PROGRESS`, `IN_REVIEW`, `BLOCKED`, `DONE`) and human-readable labels (`"To Do"`, `"not yet Started"`, `"Open"`, `"Completed"`, `"Closed"`).
+  - **Optimistic Drag State**: Instant visual card movement across columns upon drop with background API synchronization (`PATCH /api/tasks/${id}`).
+  - **Expanded Droppable Targets**: `min-h-[300px]` drop target height ensuring empty status columns (*In Progress*, *Blocked*, *Done*) have large drop targets.
 
 #### ➕ Full New Task Creation Modal (`create-task-modal.tsx`)
 - **Header Layout Selector**: Switch layouts (*Standard Layout, Software BugTracker, Construction WBS*).
@@ -88,6 +100,90 @@
 - Ticket CRUD with priority, status, category, and source tracking.
 - Configurable SLA timers with auto-escalation triggers and SLA breach detection.
 - **Ticket-to-Task Bridge**: Two-way sync where ticket status updates reflect in linked tasks and vice versa.
+
+---
+
+### 6. 👥 Portal Users & Teams Management (`/users`)
+- **Portal Users List & Grid View**: Filter active/deactivated portal members, role/cost/rate management, bulk deactivation, and bulk user updates.
+- **Sidebar Invite Button**: Permanent `[ 👥 Invite Users ]` button pinned to sidebar footer across all application views.
+- **Teams List, Grid & Details View**: Create up to 50 custom enterprise teams with Team Lead, Team Email Alias (`support@taskpmp.local`), and interactive Associated Projects tag popover.
+- **Teams Details Drawer**:
+  - **Overview Tab**: 4 SVG Donut Ring Chart Widgets (*Tasks, Issues, Phases, Team Users*).
+  - **Fields & Activity Stream Tabs**: Detailed team parameters and activity log.
+
+---
+
+### 7. 📊 Time Tracking, Schedule Export & Custom Views (`/time-tracking`)
+- **Real File Exports**: Browser downloads for `.xlsx`, `.csv`, and `.pdf` files.
+- **Schedule Export Suite**:
+  - Header links `[ Manage Schedule ]` and `[ Show Export History ]`.
+  - Date Range modes (*Last*, *Current*, *Custom* with `From *` and `To *` date pickers).
+  - Dual Column Transfer List (*Available* vs *Selected* with `MOVE ALL >` and `< MOVE ALL`).
+  - `Schedule this Export` toggle switch with `Schedule Name*`, `First Run Date*`, and `Repeat Type` (*Once*, *Daily*, *Weekly*, *Monthly*).
+  - Setup Suite Integration: `Setup > Notifications > Schedule Export` table with `OFF/ON` switch, `RUN NOW` button, `LAST DAY RUN`, and `NEXT RUN` tracking.
+- **Time Log Custom Views & Column Customizer**:
+  - Predefined and Favorite Custom Views (`⭐ Timesheets Pending Approval`).
+  - `Create Custom View` builder with up to 15 criteria fields (*Approval Status, User, Log Date, Billable Type, Project*), `Share Custom View` options (*All Users / Specific Users*), and `Accessibility` settings (*All Projects / Specific Projects*).
+  - `Add Column` right drawer with real-time search and `+ Create Custom Field` button.
+  - `Time Log Filter Drawer` with `Log Users` accordion, user list checkboxes, and match logic (`Any of these` / `All of these`).
+- **My Timesheet 7-Day Visual Widget & User-Wise Export (`/dashboard`)**:
+  - 7-day visual bar chart summary (*Wed - Tue*) for billable and non-billable hours.
+  - Summary totals row (*Billable*, *Non Billable*, *Total*).
+  - Action buttons: `+ Add Log Time`, `📅 Weekly Log Time`, `Filter`, and `Export User Data` (generates user-wise CSV/XLSX export).
+  - Adjacent `My Phases` widget showing overdue project phases.
+
+---
+
+### 8. ✍️ Timesheets & My Approvals Module (`/my-approvals`)
+- **Timesheet Creation & Grouping**:
+  - `Create Timesheet` modal with parameters: `Time Period*`, `Log Users*`, `Project*`, `Customer`, `Billing Type`.
+  - Multi-select grouping from Time Logs list via yellow bulk action bar `[ Create Timesheet ]` button.
+  - Daily hour matrix builder with `Add Row`, `Save as Draft`, and `Send for Approval`.
+- **My Approvals View (`/my-approvals`)**:
+  - Main navigation sidebar item **`✍️ My Approvals`**.
+  - Category filters (*Approved*, *Pending Approval*, *Rejected*, *All Timesheets*).
+  - Table columns matching design spec: `TIMESHEET NAME`, `TIME PERIOD`, `PROJECT NAME`, `BILLING TYPE`, `TOTAL HOURS`, `APPROVAL STATUS`, `ACTIONS`.
+  - Hover `[ ⇄ View ]` detail drawer with audit stream trail.
+  - Approval Workflow: `Approve`, `Reject` (with rejection prompt comments), `Recall` (reverts Pending timesheet to Draft), and `Delete`.
+
+---
+
+### 9. 📑 Task Lists & Visual Chart View (`/projects/[id]`)
+- **Task List Grouping**: Group tasks into milestone-aligned task lists (e.g., `Walk-through check list (13)`).
+- **Template Pre-built Task Lists**:
+  - *Architecture Use Case*: Floor plan, front elevation, side elevation, and interior designs.
+  - *HR Onboarding Use Case*: Collecting ID proofs, capturing ID card photograph, office tour.
+  - *Software Development / IT Use Case*: Quality analyst test suite (regression, security, performance).
+- **Task List Controls & Operations**:
+  - `Task List Visibility`: `Internal` (Internal team only) or `External` (Client viewable).
+  - `Automated Start Date`: Schedule start dates based on milestone schedules with `Shift Date` date-time picker.
+  - `Manage Menu (...)`: `Open Details`, `Open Details in New Tab`, `Copy Link`, `Edit`, `Clone`, `Trash / Delete`, `Move`, `Follow`.
+- **Task List Details Drawer (`TaskListDetailsDrawer`)**:
+  - Header with progress badge (*40%*), task status counts (*14 Open, 4 Closed*), flag, project, and tags.
+  - Cost & Budget Metrics Bar: `PLANNED COST`, `ACTUAL COST`, `BUDGET BALANCE`, `FORECASTED COST`.
+  - `Chart View Tab`: Visual SVG pie charts for **Tasks By User**, **Tasks By Status**, **Tasks By Priority**, and **Tasks By Percent Complete**.
+  - `Comments Tab`: Add comments with file attachments and live discussion stream.
+- **Edit, Clone & Move Modals**:
+  - `EditTaskListModal`: Update Task List name, Related Milestone, Flag, and Tags.
+  - `CloneTaskListModal`: Replicate task lists from List/Gantt view or Milestone Detail page. Supports dependency options (*Clone current task list* vs *Clone dependent task lists within the project*) and instances replicator count.
+  - `MoveTaskListModal`: Relocate Task List to target project and milestone.
+- **Milestone Details Drawer (`MilestoneDetailsDrawer`)**:
+  - Open from Phases/Milestones list view.
+  - Sub-tabs: `Task Lists`, `Issues`, `Release Notes`, `Comments`, `Fields`, `Chart View`, `Status Timeline`, `Activity Stream`.
+  - In `Task Lists` tab: `[ Add Task List ]` button, Task Lists data table (`Financing`, `installation`), tag chips, and `Clone` action menu (Screenshot 2).
+
+---
+
+### 10. 📝 Comprehensive Task Creation Suite (`/projects/[id]`)
+- **Add Task Modal Form (Screenshot 1)**:
+  - Form parameters: `Task Name*`, Rich text description toolbar (*B, I, U, S, font, size, align, list*), `Task List` dropdown, Drag-and-drop file attachment zone (*Max 10 files*), `Task Information` accordion with `Owner` tag pill selection (*👤 Monica Hemsworth ✕*), and orange action buttons (**`[ Add ]`**, **`[ Add More ]`**, **`[ Cancel ]`**).
+- **Kanban Quick Task Creation (Screenshot 2)**:
+  - Inline `+` button on Kanban column header titled `Create New Tasks`.
+  - Inline text area card `|` allowing instant task creation by pressing Enter.
+- **Task Templates Setup Screen (Screenshot 3)**:
+  - `Setup > Customization > Task Templates`: Pre-built template list (*Concrete work*) with hover **`[ + Add Task ]`** orange button.
+- **Email Alias Task Creation (Screenshot 4)**:
+  - Task List Details Drawer features **`To add Task via email to this Task list 📋`** link copying `tasklist-coa9@taskpmp.local` to clipboard.
 
 ---
 
@@ -157,7 +253,7 @@ Task&PMP-System/
 │   │   │   ├── tickets/      # Ticket CRUD, comments, KB, time logs
 │   │   │   ├── bridge/       # Ticket-to-Task bridge sync
 │   │   │   ├── dashboard/    # Analytics data
-│   │   │   └── reports/      # Reporting data
+│   │   │   ├── reports/      # Reporting data
 │   │   ├── dashboard/        # Dashboard view
 │   │   ├── projects/         # Projects list & project overview
 │   │   ├── settings/         # Setup & Settings module (/settings)
