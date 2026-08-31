@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   X,
   Bold,
@@ -33,13 +33,12 @@ export default function CreateTaskModal({
   onClose,
   onAddTask,
   taskLists = [
-    { id: "tl1", name: "01 RMG Cement Plant" },
-    { id: "tl2", name: "General Engineering & Load Testing" },
+    { id: "tl1", name: "General Task List" },
   ],
 }: CreateTaskModalProps) {
   const [taskName, setTaskName] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedTaskList, setSelectedTaskList] = useState(taskLists[0]?.name || "01 RMG Cement Plant");
+  const [selectedTaskList, setSelectedTaskList] = useState(taskLists[0]?.name || "General Task List");
   const [owner, setOwner] = useState("Select User");
   const [startDate, setStartDate] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -50,6 +49,12 @@ export default function CreateTaskModal({
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isTaskInfoOpen, setIsTaskInfoOpen] = useState(true);
 
+  useEffect(() => {
+    if (taskLists && taskLists.length > 0) {
+      setSelectedTaskList(taskLists[0].name);
+    }
+  }, [taskLists]);
+
   if (!isOpen) return null;
 
   const handleApplyFormat = (tagPrefix: string, tagSuffix: string) => {
@@ -57,7 +62,10 @@ export default function CreateTaskModal({
   };
 
   const handleSubmit = (keepOpen = false) => {
-    if (!taskName.trim()) return;
+    if (!taskName.trim()) {
+      alert("Please enter a Task Name");
+      return;
+    }
 
     const newTask = {
       id: `1P1-T${Date.now().toString().slice(-3)}`,

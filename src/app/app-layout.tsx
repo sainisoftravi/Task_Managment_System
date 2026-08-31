@@ -41,7 +41,7 @@ const mainNavItems = [
   { name: "Home", href: "/dashboard", icon: LayoutDashboard },
   { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "Projects", href: "/projects", icon: Briefcase },
-  { name: "Collaboration", href: "/kb", icon: MessageSquare },
+  { name: "Collaboration", href: "/collaboration", icon: MessageSquare },
   { name: "My Approvals", href: "/my-approvals", icon: CheckCircle2 },
   { name: "Users", href: "/users", icon: UsersIcon },
 ];
@@ -142,8 +142,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     return <div className="flex h-screen items-center justify-center font-sans text-sm text-slate-500">Loading...</div>;
   }
 
-  if (!user) {
-    return <div className="flex h-screen items-center justify-center font-sans text-sm text-slate-500">Redirecting...</div>;
+  if (isSettingsPage) {
+    return (
+      <div className="h-screen w-screen overflow-hidden font-sans bg-slate-50">
+        {children}
+      </div>
+    );
   }
 
   return (

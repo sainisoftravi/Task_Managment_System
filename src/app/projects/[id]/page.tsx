@@ -361,7 +361,14 @@ export default function ProjectOverviewPage() {
         isOpen={showCreateTaskListModal}
         onClose={() => setShowCreateTaskListModal(false)}
         onSuccess={(newList) => {
-          setTaskLists([...taskLists, newList]);
+          const updated = [newList, ...taskLists];
+          setTaskLists(updated);
+          try {
+            const customLists = JSON.parse(localStorage.getItem("custom_task_lists") || "[]");
+            localStorage.setItem("custom_task_lists", JSON.stringify([newList, ...customLists]));
+          } catch {}
+          setShowCreateTaskListModal(false);
+          alert(`Task List '${newList.name}' created and added successfully!`);
         }}
       />
 

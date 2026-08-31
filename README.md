@@ -83,16 +83,28 @@
   - **Status Normalization**: Automatic normalization mapping between database task statuses (`TODO`, `IN_PROGRESS`, `IN_REVIEW`, `BLOCKED`, `DONE`) and human-readable labels (`"To Do"`, `"not yet Started"`, `"Open"`, `"Completed"`, `"Closed"`).
   - **Optimistic Drag State**: Instant visual card movement across columns upon drop with background API synchronization (`PATCH /api/tasks/${id}`).
   - **Expanded Droppable Targets**: `min-h-[300px]` drop target height ensuring empty status columns (*In Progress*, *Blocked*, *Done*) have large drop targets.
-- **Dedicated Setup Sidebar Layout (`app-layout.tsx`)**:
-  - **Clean Setup Navigation**: When navigating to Setup (`/settings`), secondary project sub-lists (`OVERVIEW` and `RECENT PROJECTS`) are automatically hidden for a clean, dedicated Setup view.
-  - **Back Navigation**: Clicking the blue `← Setup` back arrow takes you back to the main App View where project overview options return.
-- **Interactive Display Mode Switcher (`Day` / `Night` / `Auto`)**:
-  - **Light/Dark Theme Engine**: Full support for `Day` (☀️ Light), `Night` (🌙 Dark), and `Auto` (💻 System preference) themes.
-  - **Global Synchronization**: Theme state synchronizes instantly across `Personal Settings` and `User Profile Popover Card`, toggling the `.dark` class on `<html>` root and persisting in `localStorage`.
+- **Collaboration Hub & Knowledge Base (`collaboration/page.tsx` & `kb/page.tsx`)**:
+  - **Team Status Feed**: Live announcements, post publishing, team updates, tags, likes, and comment replies.
+  - **Project Discussion Forums**: Categorized discussion topics (*Technical & Architecture*, *Client Delivery*, *General*), replies count, view counts, and topic creation modal.
+  - **Step-by-Step Learning Materials Center**: Category filter pills (*All Modules*, *Project Management*, *Workflow Rules*, *Time Tracking*, *Help Desk*, *Setup*) with rich learning guides detailing features, primary business uses, prerequisites, numbered execution steps (1, 2, 3, 4...), and best practices.
+  - **Interactive Learning Drawer Modal**: Clicking any KB card slides out a reader drawer with step-by-step instructions, code snippets, and feedback options.
+- **My Approvals Hub & Panel Collapse Controls (`my-approvals/page.tsx` & `app-layout.tsx`)**:
+  - **Timesheet Submissions Review**: Full interactive management for employee timesheet submissions (*Approved*, *Pending*, *Rejected*, *All Timesheets*), approve/reject actions, comment prompt, and recall to draft.
+  - **Side Panel Toggle Button**: The left sidebar hide/expand panel toggle button (`PanelLeftOpen` / `PanelLeftClose`) is available across all main navigation pages including `/my-approvals`.
+- **Home Dashboard Real-Time Live Metrics (`dashboard/page.tsx`)**:
+  - **Dynamic Metrics Calculation**: `buildLiveDashboardData` merges server API metrics with live client data (`user_custom_tasks`, `user_custom_projects`, `deleted_task_ids`, `deleted_project_ids`, `user_time_logs` from `localStorage`).
+  - **Real-Time KPI Cards**: **Open vs. Closed Items** card (`[N] Open / [M] Closed`), **Calculated Resolution Rate** (`[X]%`), **Priority Breakdown Doughnut Chart**, and **Project Progress** automatically reflect all real-time created, completed, and deleted projects & tasks.
 - **Robust Project Creation & Dual Persistence (`projects/page.tsx`)**:
   - **Auto Sequential Project Key**: Opening `+ New Project` calculates the highest existing project key (`DT-31`) and automatically pre-fills the `Project Prefix / ID (Key)` field with the next sequential ID (e.g. `DT-32` or `DT-01`, `DT-02` sequentially).
   - **Fail-safe Creation Flow**: Clicking `Save Project` performs full validation, sends project data to `/api/projects` POST endpoint, and immediately creates/adds the new project to the top of the Projects table with success toast notification (`Project '[name]' created successfully!`).
-  - **Dual Persistence**: Project entries persist in Prisma database (`Project` model) and `localStorage.setItem("user_custom_projects", ...)`, guaranteeing newly created projects remain visible across browser reloads.
+  - **Dual Persistence & Blank Project Isolation**: Project entries persist in Prisma database (`Project` model) and `localStorage.setItem("user_custom_projects", ...)`, guaranteeing newly created projects start with clean empty task lists (`0 tasks`, `0% progress`, `+$0 budget surplus`) and preserve custom Task Lists (`custom_task_lists`) created via `New Task List` modal.
+- **Portal Configuration (`settings/page.tsx`)**:
+  - **Portal Profile**: Header displaying organization name (`Digital Twin Solutions`), logo badge, Time Zone (`Asia/Kolkata`), Business Hours (`Standard Business Hours`), Email Encoding (`UTF-8`), and Web Address (`https://taskpmp.app`).
+  - **Portal URL Change**: Interactive portal URL slug manager (`https://taskpmp.app/portal/digitaltwin`), slug edit input, `[ Save URL ]` button, redirect warning note, and Admin permission indicator.
+  - **Prefix & ID**: Configure global portal Project Prefix (`DT`, `PR`, `TS`), with `[ Update ]` button and `localStorage.setItem("portal_project_prefix", ...)` persistence.
+  - **Tags**: Toggle switch for global tagging across projects, milestones, task lists, tasks, issues, and status.
+  - **Project Completion Percentage**: Radio options (*Task & Issue count*, *Task completion % & Issue count* with yellow sub-options for roll-up/non-roll-up projects, *Task & Issue weightage*).
+  - **Phase Completion Type**: Radio options (*Allow completion with open tasks*, *Display warning*, *Restrict phase completion*).
 - **Workflow Rules & Automation Engine (`settings/page.tsx`)**:
   - **Workflow Rules Table**: Full rule registry matching Screenshot 1 (*Notify Owner on Task Assignment*, *Notify Follower*, *Remind Task Owners on Due Date*, *Assign Task to Project Owner*, *Qatar Demo Kit Flow*).
   - **Visual Flow Diagram Canvas**: Interactive canvas builder matching Screenshots 2-5 with `WHEN` circle node and `CONDITION 1` diamond node connected by dotted flow lines.
@@ -102,9 +114,8 @@
 
 #### ➕ Full New Task Creation Modal (`create-task-modal.tsx`)
 - **Header Layout Selector**: Switch layouts (*Standard Layout, Software BugTracker, Construction WBS*).
-- **Task Fields**: Required `Task Name*`, Rich Text Description toolbar (**B**, *I*, <u>U</u>, ~~S~~, Size 13, Lists, Code, Links), Task List selector, and Drag & Drop attachment zone (*Max 30 files*).
-- **Task Information Accordion**: Owner selector dropdown, Start Date picker, Due Date picker with `Enter Duration` auto-calculator, Priority selector, and Reminder selector.
-- **Action Buttons**: `[ Add ]` (saves & closes), `[ Add More ]` (saves & keeps modal open for batch task entry), `[ Cancel ]`.
+- **Task Fields & Respective Project Task List Binding**: Required `Task Name*`, Rich Text Description toolbar (**B**, *I*, <u>U</u>, ~~S~~, Size 13, Lists, Code, Links), dynamic **Task List selector** automatically synchronized with the project's task lists (`taskLists={localTaskLists}`), and Drag & Drop attachment zone (*Max 30 files*).
+- **Task Creation & Persistence**: Clicking `[ Add ]` or `[ Add More ]` validates `Task Name*`, creates the task with formatted dates and priority, adds it to the active task list table with success toast notification (`Task '[name]' created and added successfully!`), and persists to `localStorage.setItem("user_custom_tasks", ...)` across page refreshes.
 
 #### 💬 Task Detail Drawer & Comment API (`/api/tasks/[id]/activities`)
 - Side-drawer with title editing, live timer controls (*Play, Pause, Stop*), owner selector popover badge, status dropdown, start/due date pickers, priority selector, and completion percentage slider.

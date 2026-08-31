@@ -32,6 +32,100 @@ interface DashboardData {
 
 import { Plus, LayoutGrid, BarChart2, Hash, Link as LinkIcon, Share2, Copy } from "lucide-react";
 
+function buildLiveDashboardData(serverData: DashboardData | null, days: number): DashboardData {
+  let customTasks: any[] = [];
+  let customProjects: any[] = [];
+  let deletedTaskIds: string[] = [];
+  let deletedProjectIds: string[] = [];
+
+  if (typeof window !== "undefined") {
+    try {
+      customTasks = JSON.parse(localStorage.getItem("user_custom_tasks") || "[]");
+      customProjects = JSON.parse(localStorage.getItem("user_custom_projects") || "[]");
+      deletedTaskIds = JSON.parse(localStorage.getItem("deleted_task_ids") || "[]");
+      deletedProjectIds = JSON.parse(localStorage.getItem("deleted_project_ids") || "[]");
+    } catch {}
+  }
+
+  // Calculate live project progress
+  const serverProjects = serverData?.projectProgress || [];
+  const combinedProjectsMap = new Map<string, any>();
+  serverProjects.forEach((p: any) => combinedProjectsMap.set(p.id, p));
+  customProjects.forEach((cp: any) => {
+    if (!combinedProjectsMap.has(cp.id)) {
+      combinedProjectsMap.set(cp.id, {
+        id: cp.id,
+        name: cp.name,
+        progress: cp.pct || 0,
+        loggedHours: 0,
+        estimatedHours: 40,
+      });
+    }
+  });
+
+  const activeProjects = Array.from(combinedProjectsMap.values()).filter(
+    (p) => !deletedProjectIds.includes(p.id)
+  );
+
+  // Compute live tasks counts
+  const serverOverdue = serverData?.overdueTasks || [];
+  const openTasksCount = customTasks.filter(
+    (t) => !deletedTaskIds.includes(t.id) && t.status !== "DONE" && t.status !== "COMPLETED"
+  ).length + (serverData?.overallMetrics?.openTasks || 0);
+
+  const closedTasksCount = customTasks.filter(
+    (t) => !deletedTaskIds.includes(t.id) && (t.status === "DONE" || t.status === "COMPLETED")
+  ).length + (serverData?.overallMetrics?.closedTasks || 0);
+
+  const totalTasks = openTasksCount + closedTasksCount;
+  const openTickets = serverData?.overallMetrics?.openTickets || 0;
+  const closedTickets = serverData?.overallMetrics?.closedTickets || 0;
+  const totalTickets = serverData?.overallMetrics?.totalTickets || 0;
+
+  const totalItems = openTasksCount + closedTasksCount + openTickets + closedTickets;
+  const closedItems = closedTasksCount + closedTickets;
+  const resolutionRate = totalItems > 0 ? Number(((closedItems / totalItems) * 100).toFixed(1)) : 0;
+
+  // Priority Breakdown
+  const priorityCounts: Record<string, number> = { High: 0, Medium: 0, Low: 0, None: 0 };
+  customTasks.forEach((t) => {
+    if (deletedTaskIds.includes(t.id)) return;
+    const p = (t.priority || "").replace("!", "").trim();
+    if (p === "High") priorityCounts.High++;
+    else if (p === "Medium") priorityCounts.Medium++;
+    else if (p === "Low") priorityCounts.Low++;
+    else priorityCounts.None++;
+  });
+
+  const priorityBreakdown = [
+    { name: "High", value: priorityCounts.High + (serverData?.priorityBreakdown?.find((x) => x.name === "High")?.value || 0), color: "#EF4444" },
+    { name: "Medium", value: priorityCounts.Medium + (serverData?.priorityBreakdown?.find((x) => x.name === "Medium")?.value || 0), color: "#F59E0B" },
+    { name: "Low", value: priorityCounts.Low + (serverData?.priorityBreakdown?.find((x) => x.name === "Low")?.value || 0), color: "#10B981" },
+    { name: "None", value: priorityCounts.None + (serverData?.priorityBreakdown?.find((x) => x.name === "None")?.value || 0), color: "#6B7280" },
+  ];
+
+  return {
+    slaStats: serverData?.slaStats || [],
+    overdueTasks: serverOverdue,
+    resourceHours: serverData?.resourceHours || [],
+    projectProgress: activeProjects,
+    overallMetrics: {
+      totalTickets,
+      openTickets,
+      closedTickets,
+      totalTasks,
+      openTasks: openTasksCount,
+      closedTasks: closedTasksCount,
+      resolutionRate,
+      slaCompliance: serverData?.overallMetrics?.slaCompliance || 100,
+      avgFirstResponseHours: serverData?.overallMetrics?.avgFirstResponseHours || 1.2,
+    },
+    trendData: serverData?.trendData || [],
+    priorityBreakdown,
+    assigneeBreakdown: serverData?.assigneeBreakdown || [],
+  };
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -50,19 +144,21 @@ export default function DashboardPage() {
   const fetchDashboard = useCallback(async (days = trendDays) => {
     setLoading(true);
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    let rawServerData: DashboardData | null = null;
     try {
       const res = await fetch(`/api/dashboard?days=${days}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (res.ok) {
-        const d = await res.json();
-        setData(d);
+        rawServerData = await res.json();
       }
     } catch (e) {
       console.error(e);
-    } finally {
-      setLoading(false);
     }
+
+    const liveData = buildLiveDashboardData(rawServerData, days);
+    setData(liveData);
+    setLoading(false);
   }, [trendDays]);
 
   useEffect(() => {
@@ -77,11 +173,8 @@ export default function DashboardPage() {
     );
   }
 
-  if (!data) {
-    return <div className="text-center py-12 text-slate-500 font-sans">Failed to load dashboard data</div>;
-  }
-
-  const { overallMetrics, trendData, priorityBreakdown, assigneeBreakdown } = data;
+  const liveData = buildLiveDashboardData(data, trendDays);
+  const { overallMetrics, trendData, priorityBreakdown, assigneeBreakdown } = liveData;
 
   return (
     <div className="space-y-6 font-sans">
@@ -209,15 +302,15 @@ export default function DashboardPage() {
       {activeTab === "personal" && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <OverdueTasksSection tasks={data.overdueTasks} />
+            <OverdueTasksSection tasks={liveData.overdueTasks} />
           </div>
         </div>
       )}
 
       {/* Resource Hours & Project Progress */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ResourceHoursSection resources={data.resourceHours} />
-        <ProjectProgressSection projects={data.projectProgress} />
+        <ResourceHoursSection resources={liveData.resourceHours} />
+        <ProjectProgressSection projects={liveData.projectProgress} />
       </div>
 
       {/* Export Modal Component */}

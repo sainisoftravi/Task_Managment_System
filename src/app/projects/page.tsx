@@ -103,7 +103,8 @@ export default function ProjectsPage() {
   }
 
   const handleOpenNewProjectModal = () => {
-    const nextKey = getNextSequentialProjectKey(projects, "DT");
+    const savedPrefix = (typeof window !== "undefined" && localStorage.getItem("portal_project_prefix")) || "DT";
+    const nextKey = getNextSequentialProjectKey(projects, savedPrefix);
     setNewKey(nextKey);
     setNewName("");
     setNewStartDate(new Date().toISOString().split("T")[0]);
@@ -119,7 +120,8 @@ export default function ProjectsPage() {
 
     const token = localStorage.getItem("token");
     const todayStr = new Date().toISOString().split("T")[0];
-    const generatedKey = newKey.trim() || getNextSequentialProjectKey(projects, "DT");
+    const savedPrefix = (typeof window !== "undefined" && localStorage.getItem("portal_project_prefix")) || "DT";
+    const generatedKey = newKey.trim() || getNextSequentialProjectKey(projects, savedPrefix);
 
     let createdProject: any = null;
 
@@ -449,10 +451,14 @@ export default function ProjectsPage() {
                   </tr>
                 ) : (
                   filtered.map((project, idx) => {
-                    const tasksTotal = project.tasks?.length || (idx === 0 ? 5 : idx === 1 ? 18 : 8);
-                    const tasksCompleted = Math.floor(tasksTotal * (idx === 0 ? 0.77 : idx === 1 ? 0.45 : 0.77));
-                    const progressPct = idx === 0 ? 77 : idx === 1 ? 45 : 77;
-                    const ownerName = project.owner?.name || (idx === 0 ? "Sushil Verma" : idx === 1 ? "Ravi Saini" : "Divakar Pandiy");
+                    const isNewOrBlankProject = project.id.startsWith("proj-") || (Array.isArray(project.tasks) && project.tasks.length === 0 && !(project as any)._count?.tasks);
+                    const tasksTotal = isNewOrBlankProject ? 0 : (project.tasks?.length || (idx === 0 ? 5 : idx === 1 ? 18 : 8));
+                    const tasksCompleted = isNewOrBlankProject ? 0 : Math.floor(tasksTotal * (idx === 0 ? 0.77 : idx === 1 ? 0.45 : 0.77));
+                    const progressPct = isNewOrBlankProject ? 0 : (idx === 0 ? 77 : idx === 1 ? 45 : 77);
+                    const budgetVarianceText = isNewOrBlankProject ? "+$0 (Surplus)" : (idx === 1 ? "-$12,400 (Overrun)" : "+$8,500 (Surplus)");
+                    const budgetDetailText = isNewOrBlankProject ? "Plan $0 / Act $0" : (idx === 1 ? "Plan $50k / Act $62.4k" : "Plan $45k / Act $36.5k");
+                    const phasesText = isNewOrBlankProject ? "0 Phases" : (idx === 0 ? "3 Phases" : "5 Phases");
+                    const ownerName = project.owner?.name || (isNewOrBlankProject ? "Admin User" : (idx === 0 ? "Sushil Verma" : idx === 1 ? "Ravi Saini" : "Divakar Pandiy"));
                     const ownerInitials = ownerName.split(" ").map((n) => n[0]).join("").slice(0, 2);
                     const isProjectMenuOpen = activeProjectMenuId === project.id;
 
@@ -685,11 +691,11 @@ export default function ProjectsPage() {
                         {/* Budget Variance Column */}
                         <td className="py-3.5 px-4">
                           <div className="flex flex-col">
-                            <span className={`text-[11px] font-bold ${idx === 1 ? "text-red-600" : "text-emerald-600"}`}>
-                              {idx === 1 ? "-$12,400 (Overrun)" : "+$8,500 (Surplus)"}
+                            <span className={`text-[11px] font-bold ${budgetVarianceText.includes("Overrun") ? "text-red-600" : "text-emerald-600"}`}>
+                              {budgetVarianceText}
                             </span>
                             <span className="text-[10px] text-slate-400 font-mono">
-                              {idx === 1 ? "Plan $50k / Act $62.4k" : "Plan $45k / Act $36.5k"}
+                              {budgetDetailText}
                             </span>
                           </div>
                         </td>
@@ -712,7 +718,7 @@ export default function ProjectsPage() {
                         {/* Phases Column */}
                         <td className="py-3.5 px-4 text-center">
                           <span className="inline-block px-2 py-0.5 rounded bg-blue-50 text-[#0070BA] text-[10px] font-bold border border-blue-200">
-                            {idx === 0 ? "3 Phases" : "5 Phases"}
+                            {phasesText}
                           </span>
                         </td>
 

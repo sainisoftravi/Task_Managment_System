@@ -153,8 +153,8 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
       deletedTaskIds = JSON.parse(localStorage.getItem("deleted_task_ids") || "[]");
     } catch {}
 
-    let baseTasks = initialTasksList;
-    if (Array.isArray(tasks) && tasks.length > 0) {
+    let baseTasks: any[] = [];
+    if (Array.isArray(tasks)) {
       baseTasks = tasks.map((t) => ({
         id: t.id,
         key: t.key || `1P1-${t.id.slice(0, 4)}`,
@@ -170,6 +170,8 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
         priority: t.priority ? `! ${t.priority}` : "! None",
         pct: (t as any).pct ?? 0,
       }));
+    } else {
+      baseTasks = initialTasksList;
     }
     return baseTasks.filter((t) => !deletedTaskIds.includes(t.id) && (!t.key || !deletedTaskIds.includes(t.key)));
   });
@@ -180,7 +182,7 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
       deletedTaskIds = JSON.parse(localStorage.getItem("deleted_task_ids") || "[]");
     } catch {}
 
-    if (Array.isArray(tasks) && tasks.length > 0) {
+    if (Array.isArray(tasks)) {
       const formatted = tasks.map((t) => ({
         id: t.id,
         key: t.key || `1P1-${t.id.slice(0, 4)}`,
@@ -199,6 +201,31 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
       setLocalTasks(formatted.filter((t) => !deletedTaskIds.includes(t.id) && (!t.key || !deletedTaskIds.includes(t.key))));
     }
   }, [tasks]);
+
+  // Dynamic Local Task Lists State with localStorage custom_task_lists persistence
+  const [localTaskLists, setLocalTaskLists] = useState<any[]>(() => {
+    let customLists: any[] = [];
+    try {
+      customLists = JSON.parse(localStorage.getItem("custom_task_lists") || "[]");
+    } catch {}
+    const combined = [...(taskLists || []), ...customLists];
+    if (combined.length === 0) {
+      return [
+        { id: "tl-default", name: "General Task List", flag: "Internal", milestone: "None" },
+      ];
+    }
+    return combined;
+  });
+
+  const handleAddTaskListSuccess = (newList: any) => {
+    const updated = [newList, ...localTaskLists.filter((l) => l.id !== newList.id)];
+    setLocalTaskLists(updated);
+    try {
+      localStorage.setItem("custom_task_lists", JSON.stringify(updated));
+    } catch {}
+    setShowAddTaskListModal(false);
+    alert(`Task List '${newList.name}' created and added successfully!`);
+  };
 
   function parseToDateTimeInput(dateStr: string) {
     if (!dateStr) return "2025-12-22T19:00";
@@ -551,8 +578,18 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
         isOpen={showCreateTaskModal}
         onClose={() => setShowCreateTaskModal(false)}
         onAddTask={(newTaskData) => {
-          setLocalTasks([newTaskData, ...localTasks]);
+          const updated = [newTaskData, ...localTasks.filter((t) => t.id !== newTaskData.id)];
+          setLocalTasks(updated);
+          try {
+            const customTasks = JSON.parse(localStorage.getItem("user_custom_tasks") || "[]");
+            const filteredCustom = customTasks.filter((t: any) => t.id !== newTaskData.id);
+            filteredCustom.unshift(newTaskData);
+            localStorage.setItem("user_custom_tasks", JSON.stringify(filteredCustom));
+          } catch {}
+          if (onAddTask) onAddTask();
+          alert(`Task '${newTaskData.title}' created and added successfully!`);
         }}
+        taskLists={localTaskLists}
       />
 
       {/* Clone Task List Modal */}
@@ -958,9 +995,7 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
       <CreateTaskListModal
         isOpen={showAddTaskListModal}
         onClose={() => setShowAddTaskListModal(false)}
-        onSuccess={(newList) => {
-          alert(`Added new Task List '${newList.name}' (${newList.flag}).`);
-        }}
+        onSuccess={handleAddTaskListSuccess}
       />
 
       {/* Task List Details Drawer matching Screenshot 2 */}

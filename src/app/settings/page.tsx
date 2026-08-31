@@ -33,12 +33,13 @@ import {
   List,
   MinusCircle,
   Info,
-  Trash2
+  Trash2,
+  Edit
 } from "lucide-react";
 
 export default function SettingsPage() {
   const [activeCategory, setActiveCategory] = useState<
-    "PERSONAL_SETTINGS" | "PERSONAL_EMAIL" | "ACTIVITY_REMINDER" | "PORTAL_CONFIGURATION" | "PROFILES" | "ROLES" | "SCHEDULE_EXPORT" | "TASK_TEMPLATES" | "AUTOMATION"
+    "PERSONAL_SETTINGS" | "PERSONAL_EMAIL" | "ACTIVITY_REMINDER" | "PORTAL_CONFIGURATION" | "PROFILES" | "ROLES" | "SCHEDULE_EXPORT" | "TASK_TEMPLATES" | "AUTOMATION" | "PROJECT_SETTINGS"
   >("PERSONAL_SETTINGS");
 
   const [sidebarSearch, setSidebarSearch] = useState("");
@@ -183,11 +184,40 @@ export default function SettingsPage() {
   const [digestAmpm, setDigestAmpm] = useState("pm");
   const [subscribedToast, setSubscribedToast] = useState(false);
 
-  // Screenshot 4 & 5: Portal Configuration State
-  const [configTab, setConfigTab] = useState<"PORTAL" | "USER">("PORTAL");
-  const [companyName, setCompanyName] = useState("Digital Twin Solutions");
-  const [nameFormat, setNameFormat] = useState("First Name + Last Name");
-  const [savedToast, setSavedToast] = useState(false);
+  // Portal Configuration State matching Screenshots 1 & 2
+  const [portalTab, setPortalTab] = useState<"PORTAL" | "USER">("PORTAL");
+  const [portalName, setPortalName] = useState(() => {
+    try {
+      return localStorage.getItem("portal_name") || "Digital Twin Solutions";
+    } catch {
+      return "Digital Twin Solutions";
+    }
+  });
+  const [portalSlug, setPortalSlug] = useState(() => {
+    try {
+      return localStorage.getItem("portal_slug") || "digitaltwin";
+    } catch {
+      return "digitaltwin";
+    }
+  });
+  const [isEditingPortalName, setIsEditingPortalName] = useState(false);
+  const [isEditingPortalSlug, setIsEditingPortalSlug] = useState(false);
+  const [timeZone, setTimeZone] = useState("Asia/Kolkata");
+  const [businessHours, setBusinessHours] = useState("Standard Business Hours");
+
+  // Project Settings State matching Screenshots 1 & 2
+  const [projectPrefix, setProjectPrefix] = useState(() => {
+    try {
+      return localStorage.getItem("portal_project_prefix") || "DT";
+    } catch {
+      return "DT";
+    }
+  });
+  const [enableTags, setEnableTags] = useState(false);
+  const [completionMethod, setCompletionMethod] = useState("METHOD_2");
+  const [rollupCalc, setRollupCalc] = useState("ROOT");
+  const [nonRollupCalc, setNonRollupCalc] = useState("ALL");
+  const [phaseCompletionType, setPhaseCompletionType] = useState("ALLOW");
 
   // Profiles State
   const [profileTab, setProfileTab] = useState<"USER" | "CLIENT" | "SYSTEM">("USER");
@@ -488,7 +518,7 @@ export default function SettingsPage() {
       : userPermissionsMatrix;
 
   return (
-    <div className="flex h-[calc(100vh-5rem)] bg-slate-50 font-sans -m-6 overflow-hidden">
+    <div className="flex h-screen w-screen bg-slate-50 font-sans overflow-hidden">
       {/* Setup Left Sidebar matching Screenshots */}
       <div className="w-64 bg-white border-r border-slate-200 flex flex-col flex-shrink-0">
         {/* Header with Arrow Back */}
@@ -537,18 +567,7 @@ export default function SettingsPage() {
                       <button
                         key={item.id}
                         onClick={() => {
-                          if (
-                            item.id === "PERSONAL_SETTINGS" ||
-                            item.id === "PERSONAL_EMAIL" ||
-                            item.id === "ACTIVITY_REMINDER" ||
-                            item.id === "PORTAL_CONFIGURATION" ||
-                            item.id === "PROFILES" ||
-                            item.id === "ROLES" ||
-                            item.id === "SCHEDULE_EXPORT" ||
-                            item.id === "TASK_TEMPLATES"
-                          ) {
-                            setActiveCategory(item.id as any);
-                          }
+                          setActiveCategory(item.id as any);
                         }}
                         className={`w-full text-left px-2.5 py-1.5 rounded transition-colors font-medium cursor-pointer ${
                           isActive
@@ -730,11 +749,180 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* SCREEN 4: PORTAL CONFIGURATION */}
+          {/* SCREEN 4: PORTAL CONFIGURATION matching Screenshots 1 & 2 */}
           {activeCategory === "PORTAL_CONFIGURATION" && (
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs space-y-6 text-xs font-sans">
-              <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Portal Configuration</h3>
-              <p className="text-slate-700 font-medium">Digital Twin Solutions custom portal domain setup.</p>
+            <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden font-sans text-xs animate-fadeIn">
+              {/* Sub-Tabs Header Bar matching Screenshots 1 & 2 */}
+              <div className="flex items-center gap-6 px-6 pt-4 border-b border-slate-200 bg-white text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setPortalTab("PORTAL")}
+                  className={`pb-3 transition-colors border-b-2 cursor-pointer ${
+                    portalTab === "PORTAL"
+                      ? "border-[#0070BA] text-[#0070BA]"
+                      : "border-transparent text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  Portal Settings
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPortalTab("USER")}
+                  className={`pb-3 transition-colors border-b-2 cursor-pointer ${
+                    portalTab === "USER"
+                      ? "border-[#0070BA] text-[#0070BA]"
+                      : "border-transparent text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  User Settings
+                </button>
+              </div>
+
+              {portalTab === "PORTAL" ? (
+                <div className="p-6 space-y-8">
+                  {/* Top Profile Header matching Screenshots 1 & 2 */}
+                  <div className="flex items-start gap-5">
+                    {/* Logo Badge */}
+                    <div className="h-20 w-20 rounded-full bg-slate-900 flex flex-col items-center justify-center text-white border-2 border-slate-800 shadow-md flex-shrink-0">
+                      <Layers className="h-6 w-6 text-emerald-400 mb-0.5" />
+                      <span className="text-[10px] font-bold text-slate-200 tracking-wider uppercase">Projects</span>
+                    </div>
+
+                    {/* Organization Info */}
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-2">
+                        {isEditingPortalName ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={portalName}
+                              onChange={(e) => setPortalName(e.target.value)}
+                              className="rounded border border-[#0070BA] px-2.5 py-1 text-sm font-bold text-slate-900 focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsEditingPortalName(false);
+                                try {
+                                  localStorage.setItem("portal_name", portalName);
+                                } catch {}
+                                alert(`Portal Name updated to '${portalName}'.`);
+                              }}
+                              className="px-3 py-1 bg-[#0070BA] text-white text-xs font-bold rounded hover:bg-blue-700 cursor-pointer"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <h3 className="text-base font-bold text-slate-900">{portalName}</h3>
+                            <button
+                              type="button"
+                              onClick={() => setIsEditingPortalName(true)}
+                              className="text-slate-400 hover:text-[#0070BA] p-0.5 cursor-pointer"
+                              title="Edit Portal Name"
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Metadata Bar matching Screenshots 1 & 2 */}
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-slate-600 font-medium">
+                        <div>
+                          Time Zone: <span className="font-bold text-slate-900">{timeZone}</span>
+                        </div>
+                        <div>
+                          Business Hours: <span className="font-bold text-slate-900">{businessHours}</span>
+                        </div>
+                        <div>
+                          Email Encoding: <span className="font-bold text-slate-900">UTF-8</span>
+                        </div>
+                        <div>
+                          Web Address: <span className="text-[#0070BA] hover:underline cursor-pointer">https://taskpmp.app</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-200 pt-6" />
+
+                  {/* Portal URL Change Section matching Screenshots 1 & 2 */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
+                    <div className="md:col-span-1">
+                      <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Portal URL Change</h4>
+                    </div>
+
+                    <div className="md:col-span-3 space-y-4">
+                      {/* Interactive URL display/edit matching Screenshot 1 & 2 */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-1.5 font-mono text-xs text-slate-700 bg-slate-50 p-2.5 rounded-md border border-slate-200">
+                          <span className="text-slate-500 font-sans">https://taskpmp.app/portal/</span>
+                          {isEditingPortalSlug ? (
+                            <input
+                              type="text"
+                              value={portalSlug}
+                              onChange={(e) => setPortalSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))}
+                              className="bg-white border border-[#0070BA] px-2 py-0.5 text-xs font-bold text-blue-600 rounded focus:outline-none"
+                            />
+                          ) : (
+                            <span className="font-bold text-blue-600 underline bg-blue-50 px-2 py-0.5 rounded">
+                              {portalSlug}
+                            </span>
+                          )}
+                          {isEditingPortalSlug ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsEditingPortalSlug(false);
+                                try {
+                                  localStorage.setItem("portal_slug", portalSlug);
+                                } catch {}
+                                alert(`Portal URL changed successfully! New Portal URL: https://taskpmp.app/portal/${portalSlug}`);
+                              }}
+                              className="ml-auto px-3 py-1 bg-[#0070BA] text-white text-xs font-bold rounded hover:bg-blue-700 font-sans cursor-pointer"
+                            >
+                              Save URL
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setIsEditingPortalSlug(true)}
+                              className="ml-auto text-xs font-bold text-[#0070BA] hover:underline font-sans cursor-pointer"
+                            >
+                              Edit URL
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Explanation Note matching Screenshot 1 & 2 */}
+                      <p className="text-slate-500 text-xs leading-relaxed">
+                        The previous portal URL will no longer work. You will be redirected to the new portal URL{" "}
+                        <span className="font-mono text-slate-700">https://taskpmp.app/portal/&lt;newportal&gt;</span>
+                      </p>
+
+                      {/* Admin Notice matching Screenshot 1 & 2 */}
+                      <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-blue-50/60 p-3 rounded-md border border-blue-100">
+                        <User className="h-4 w-4 text-[#0070BA]" />
+                        <span>
+                          You have Admin access to change the portal URL or organization profile.
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* User Settings Tab */
+                <div className="p-6 space-y-4">
+                  <h4 className="text-sm font-bold text-slate-900">User Portal Preferences</h4>
+                  <p className="text-xs text-slate-500">Configure personal account display options and organization portal view settings.</p>
+                  <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                    <p className="text-xs font-semibold text-slate-700">Portal View Mode: Standard Enterprise View</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -991,6 +1179,242 @@ export default function SettingsPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {/* PROJECT SETTINGS PAGE matching Screenshots 1 & 2 */}
+          {activeCategory === "PROJECT_SETTINGS" && (
+            <div className="space-y-6 font-sans text-xs animate-fadeIn">
+              {/* Page Header */}
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Project &amp; Project Groups</h2>
+                  <p className="text-xs text-slate-500">Configure global project prefix, tags, and progress calculation rules</p>
+                </div>
+              </div>
+
+              {/* Section 1: Prefix & ID */}
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 mb-1">Prefix &amp; ID</h3>
+                  <p className="text-slate-500 text-xs leading-relaxed max-w-3xl">
+                    The Project ID is a prefix appended to a unique number that allows you to identify and track projects. The Project prefix must be no more than ten characters long and can only contain letters and numbers.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <input
+                    type="text"
+                    maxLength={10}
+                    value={projectPrefix}
+                    onChange={(e) => setProjectPrefix(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                    className="w-48 rounded border border-slate-300 px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-[#0070BA] focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const clean = projectPrefix.trim() || "DT";
+                      setProjectPrefix(clean);
+                      try {
+                        localStorage.setItem("portal_project_prefix", clean);
+                      } catch {}
+                      alert(`Project Prefix updated to '${clean}'. New projects will auto-generate IDs starting with '${clean}-'.`);
+                    }}
+                    className="rounded bg-[#0070BA] hover:bg-blue-700 px-5 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
+                  >
+                    Update
+                  </button>
+                </div>
+              </div>
+
+              {/* Section 2: Tags */}
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 mb-1">Tags</h3>
+                  <p className="text-slate-500 text-xs">
+                    Enable tags and associate them with projects, milestones, task lists, Tasks, issues, forums, and status.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setEnableTags(!enableTags)}
+                  className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    enableTags ? "bg-[#0070BA]" : "bg-slate-300"
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                      enableTags ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Section 3: Project Completion Percentage */}
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 mb-1">Project Completion Percentage</h3>
+                  <p className="text-slate-500 text-xs mb-3">Select one of the following methods:</p>
+
+                  <div className="space-y-3 font-medium text-slate-800">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="completionMethod"
+                        checked={completionMethod === "METHOD_1"}
+                        onChange={() => setCompletionMethod("METHOD_1")}
+                        className="text-[#0070BA] focus:ring-0 cursor-pointer"
+                      />
+                      <span>Based on completed Task and Issue count.</span>
+                    </label>
+
+                    <div className="space-y-3">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="completionMethod"
+                          checked={completionMethod === "METHOD_2"}
+                          onChange={() => setCompletionMethod("METHOD_2")}
+                          className="text-[#0070BA] focus:ring-0 cursor-pointer"
+                        />
+                        <span>Based on Task completion percentage and completed Issue count.</span>
+                      </label>
+
+                      {/* Sub-Option Yellow Box matching Screenshot 1 & 2 */}
+                      {completionMethod === "METHOD_2" && (
+                        <div className="ml-6 bg-[#FFFBEB] p-4 rounded-md border border-amber-200 space-y-3 text-xs font-semibold text-slate-700 animate-fadeIn">
+                          <div>
+                            <p className="mb-1 text-slate-800">
+                              For the roll-up project, choose whether to calculate completion based on tasks or subtasks. <span className="text-slate-400 font-normal">ⓘ</span>
+                            </p>
+                            <div className="flex items-center gap-4 pl-2">
+                              <label className="flex items-center gap-1.5 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name="rollupCalc"
+                                  checked={rollupCalc === "ROOT"}
+                                  onChange={() => setRollupCalc("ROOT")}
+                                  className="text-[#0070BA] focus:ring-0 cursor-pointer"
+                                />
+                                <span>Root Task</span>
+                              </label>
+                              <label className="flex items-center gap-1.5 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name="rollupCalc"
+                                  checked={rollupCalc === "SUBTASKS"}
+                                  onChange={() => setRollupCalc("SUBTASKS")}
+                                  className="text-[#0070BA] focus:ring-0 cursor-pointer"
+                                />
+                                <span>Subtasks</span>
+                              </label>
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="mb-1 text-slate-800">
+                              For the non roll-up project, choose whether to calculate completion based on tasks or subtasks. <span className="text-slate-400 font-normal">ⓘ</span>
+                            </p>
+                            <div className="flex items-center gap-4 pl-2">
+                              <label className="flex items-center gap-1.5 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name="nonRollupCalc"
+                                  checked={nonRollupCalc === "ALL"}
+                                  onChange={() => setNonRollupCalc("ALL")}
+                                  className="text-[#0070BA] focus:ring-0 cursor-pointer"
+                                />
+                                <span>All tasks</span>
+                              </label>
+                              <label className="flex items-center gap-1.5 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name="nonRollupCalc"
+                                  checked={nonRollupCalc === "ROOT"}
+                                  onChange={() => setNonRollupCalc("ROOT")}
+                                  className="text-[#0070BA] focus:ring-0 cursor-pointer"
+                                />
+                                <span>Root Task</span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="completionMethod"
+                        checked={completionMethod === "METHOD_3"}
+                        onChange={() => setCompletionMethod("METHOD_3")}
+                        className="text-[#0070BA] focus:ring-0 cursor-pointer"
+                      />
+                      <span>Based on Task and Issue weightage field.</span>
+                    </label>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => alert("Project Completion Percentage settings updated successfully.")}
+                  className="rounded bg-[#0070BA] hover:bg-blue-700 px-5 py-2 text-xs font-bold text-white shadow-xs cursor-pointer mt-2"
+                >
+                  Update
+                </button>
+              </div>
+
+              {/* Section 4: Phase Completion Type */}
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 mb-1">Phase Completion Type</h3>
+                  <p className="text-slate-500 text-xs mb-3">Select one of the following methods:</p>
+
+                  <div className="space-y-2.5 font-medium text-slate-800">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="phaseCompletionType"
+                        checked={phaseCompletionType === "ALLOW"}
+                        onChange={() => setPhaseCompletionType("ALLOW")}
+                        className="text-[#0070BA] focus:ring-0 cursor-pointer"
+                      />
+                      <span>Allow Phase completion with open Tasks and Issues</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="phaseCompletionType"
+                        checked={phaseCompletionType === "WARNING"}
+                        onChange={() => setPhaseCompletionType("WARNING")}
+                        className="text-[#0070BA] focus:ring-0 cursor-pointer"
+                      />
+                      <span>Display a warning when completing a Phase with open Tasks or Issues</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="phaseCompletionType"
+                        checked={phaseCompletionType === "RESTRICT"}
+                        onChange={() => setPhaseCompletionType("RESTRICT")}
+                        className="text-[#0070BA] focus:ring-0 cursor-pointer"
+                      />
+                      <span>Restrict Phase completion if there are open Tasks or Issues</span>
+                    </label>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => alert("Phase Completion Type settings updated successfully.")}
+                  className="rounded bg-[#0070BA] hover:bg-blue-700 px-5 py-2 text-xs font-bold text-white shadow-xs cursor-pointer mt-2"
+                >
+                  Update
+                </button>
               </div>
             </div>
           )}
