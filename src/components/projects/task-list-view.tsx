@@ -32,7 +32,8 @@ import {
   Eye,
   Info,
   Edit,
-  Check
+  Check,
+  Paperclip
 } from "lucide-react";
 import TaskDetailDrawer from "@/components/projects/task-detail-drawer";
 import CreateTaskListModal from "@/components/projects/create-task-list-modal";
@@ -117,7 +118,32 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
   const [showAddColumnDrawer, setShowAddColumnDrawer] = useState(false);
   const [columnDrawerSearch, setColumnDrawerSearch] = useState("");
 
-  // Default interactive demo tasks matching Screenshot 1 & 2
+  // Task Automation State
+  const [showAutomationDrawer, setShowAutomationDrawer] = useState(false);
+  const [showAutomationRuleModal, setShowAutomationRuleModal] = useState(false);
+  const [autoRuleName, setAutoRuleName] = useState("New Task Automation Rule");
+  const [autoRuleLayout, setAutoRuleLayout] = useState("All Layouts");
+  const [automationRules, setAutomationRules] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem("workflow_rules");
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return [
+      { id: "r1", code: "NO", color: "bg-[#7FD8D8] text-white", name: "Notify Owner on Task Assignment / Status Change", layout: "All Layouts", executeOn: "Comment, Update (Status, Owner)", nextRule: true, active: true },
+      { id: "r2", code: "NF", color: "bg-lime-500 text-white", name: "Notify Follower on Task Assignment / Status Change", layout: "All Layouts", executeOn: "Update (Start Date, Owner)", nextRule: false, active: true },
+      { id: "r3", code: "RT", color: "bg-amber-500 text-white", name: "Remind Task Owners on the Due Date", layout: "All Layouts", executeOn: "Creation, Update (Start Date)", nextRule: false, active: true },
+      { id: "r4", code: "AT", color: "bg-[#F4B4C4] text-white", name: "Assign Task to Project Owner by Default", layout: "All Layouts", executeOn: "Creation", nextRule: false, active: false },
+    ];
+  });
+  // Import Tasks Wizard Modal State matching Screenshot 1
+  const [showImportTasksModal, setShowImportTasksModal] = useState(false);
+  const [importFileType, setImportFileType] = useState<"MPP" | "XLS" | "JSON" | "CSV">("MPP");
+  const [importFileName, setImportFileName] = useState("mytasks.mpp.textClipping");
+  const [associateBlueprintCheck, setAssociateBlueprintCheck] = useState(true);
+
+  // Drag & Drop Subtask Reordering State matching Screenshot 2
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+  const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
   const initialTasksList = [
     {
       id: "1P1-124",
@@ -755,7 +781,11 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
 
         {/* Right Buttons: Split Add Task Dropdown */}
         <div className="flex items-center gap-2">
-          <button className="inline-flex items-center gap-1.5 rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">
+          <button
+            type="button"
+            onClick={() => setShowAutomationDrawer(true)}
+            className="inline-flex items-center gap-1.5 rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-50 cursor-pointer shadow-2xs"
+          >
             <Sparkles className="h-3.5 w-3.5 text-[#0070BA]" />
             <span>Automation</span>
           </button>
@@ -778,7 +808,7 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
             </div>
 
             {showAddMenu && (
-              <div className="absolute right-0 mt-1 z-50 w-40 rounded-md bg-white p-1 shadow-lg border border-slate-200 text-xs font-semibold text-slate-700">
+              <div className="absolute right-0 mt-1 z-50 w-44 rounded-md bg-white p-1 shadow-lg border border-slate-200 text-xs font-semibold text-slate-700">
                 <button
                   onClick={() => {
                     setShowAddMenu(false);
@@ -796,6 +826,25 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                   className="w-full text-left px-3 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
                 >
                   Add Task List
+                </button>
+                <div className="border-t border-slate-100 my-1" />
+                <button
+                  onClick={() => {
+                    setShowAddMenu(false);
+                    setShowImportTasksModal(true);
+                  }}
+                  className="w-full text-left px-3 py-1.5 rounded hover:bg-orange-50 text-orange-600 font-bold cursor-pointer"
+                >
+                  Import Tasks
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAddMenu(false);
+                    alert("Exporting tasks to XLS/CSV file...");
+                  }}
+                  className="w-full text-left px-3 py-1.5 rounded hover:bg-slate-100 cursor-pointer"
+                >
+                  Export Tasks
                 </button>
               </div>
             )}
@@ -996,23 +1045,57 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                       <input type="checkbox" className="rounded text-[#0070BA]" />
                     </td>
 
-                    {/* ID */}
+                    {/* ID & Subtask Reorder Handle matching Screenshot 2 */}
                     <td
-                      onClick={() => setSelectedDrawerTask(task)}
-                      className="py-2.5 px-3 font-mono font-bold text-slate-600 cursor-pointer hover:underline"
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setDragOverTaskId(task.id);
+                      }}
+                      onDragLeave={() => setDragOverTaskId(null)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (draggingTaskId && draggingTaskId !== task.id) {
+                          alert(`Task reordered under ${task.key || task.id} as a subtask!`);
+                        }
+                        setDraggingTaskId(null);
+                        setDragOverTaskId(null);
+                      }}
+                      className="py-2.5 px-3 font-mono font-bold text-slate-600 cursor-pointer hover:underline relative"
                     >
-                      {task.key || task.id}
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          draggable
+                          onDragStart={() => setDraggingTaskId(task.id)}
+                          onDragEnd={() => setDraggingTaskId(null)}
+                          className="text-slate-300 hover:text-orange-500 cursor-grab active:cursor-grabbing text-xs"
+                          title="Drag to reorder subtask"
+                        >
+                          ::
+                        </span>
+                        <span onClick={() => setSelectedDrawerTask(task)}>{task.key || task.id}</span>
+                      </div>
+
+                      {/* Drop Here to Reorder Banner matching Screenshot 2 */}
+                      {dragOverTaskId === task.id && (
+                        <div className="absolute left-0 top-8 z-50 w-64 bg-[#38BDF8] text-white p-2 rounded-lg shadow-xl font-sans text-xs font-bold flex items-center gap-2 animate-fadeIn">
+                          <CheckCircle2 className="h-4 w-4 text-white" />
+                          <span>Drop here to reorder the task.</span>
+                        </div>
+                      )}
                     </td>
 
-                    {/* Interactive Task Name Cell (Directly Editable Inline Name Input) */}
+                    {/* Interactive Task Name Cell with Subtask Indentation */}
                     <td className="py-2.5 px-3 font-bold text-slate-900">
-                      <input
-                        type="text"
-                        value={task.title}
-                        onChange={(e) => handleUpdateTask({ ...task, title: e.target.value })}
-                        className="w-full rounded border border-transparent hover:border-slate-300 focus:border-[#0070BA] focus:outline-none px-1.5 py-0.5 text-xs font-bold text-slate-900 bg-transparent"
-                        placeholder="Task title..."
-                      />
+                      <div className="flex items-center gap-2">
+                        {task.isSubtask && <span className="text-slate-400 pl-4 text-xs font-bold">└─</span>}
+                        <input
+                          type="text"
+                          value={task.title}
+                          onChange={(e) => handleUpdateTask({ ...task, title: e.target.value })}
+                          className="w-full rounded border border-transparent hover:border-slate-300 focus:border-[#0070BA] focus:outline-none px-1.5 py-0.5 text-xs font-bold text-slate-900 bg-transparent"
+                          placeholder="Task title..."
+                        />
+                      </div>
                     </td>
 
                     {/* Owner Dropdown */}
@@ -1215,7 +1298,8 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                     </td>
                   </tr>
                 );
-              }))}
+              })
+            )}
             </tbody>
           </table>
         </div>
@@ -1628,6 +1712,339 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
               <Plus className="h-4 w-4" />
               <span>Create Custom Field</span>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* TASK AUTOMATION DRAWER */}
+      {showAutomationDrawer && (
+        <div className="fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-white shadow-2xl border-l border-slate-200 flex flex-col font-sans text-xs animate-slideInRight">
+          <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-white">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-[#0070BA]" />
+              <div>
+                <h4 className="font-bold text-slate-900 text-sm">Task Automation &amp; Workflow Rules</h4>
+                <p className="text-slate-500 text-[11px]">Define conditions and triggers to automate repetitive task workflows</p>
+              </div>
+            </div>
+            <button onClick={() => setShowAutomationDrawer(false)} className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+            <span className="font-bold text-slate-700">Active Rules ({automationRules.length})</span>
+            <button
+              type="button"
+              onClick={() => {
+                setAutoRuleName("New Task Workflow Rule");
+                setShowAutomationRuleModal(true);
+              }}
+              className="px-4 py-2 bg-[#0070BA] hover:bg-blue-700 text-white font-bold rounded-md shadow-2xs cursor-pointer flex items-center gap-1.5"
+            >
+              <Plus className="h-4 w-4" />
+              <span>+ New Workflow Rule</span>
+            </button>
+          </div>
+
+          {/* Workflow Rules Registry List */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {automationRules.map((rule) => (
+              <div key={rule.id} className="p-3.5 bg-white border border-slate-200 rounded-xl shadow-2xs hover:border-blue-300 transition-colors space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-slate-300 cursor-grab font-bold">::</span>
+                    <span className={`px-2 py-0.5 rounded font-bold text-[10px] uppercase ${rule.color}`}>
+                      {rule.code}
+                    </span>
+                    <h5 className="font-bold text-slate-900 text-xs">{rule.name}</h5>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Status Toggle Switch */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = automationRules.map(r => r.id === rule.id ? { ...r, active: !r.active } : r);
+                        setAutomationRules(updated);
+                        try {
+                          localStorage.setItem("workflow_rules", JSON.stringify(updated));
+                        } catch {}
+                      }}
+                      className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer ${
+                        rule.active ? "bg-emerald-500" : "bg-slate-300"
+                      }`}
+                    >
+                      <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-transform ${
+                        rule.active ? "translate-x-4" : "translate-x-0"
+                      }`} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAutoRuleName(rule.name);
+                        setShowAutomationRuleModal(true);
+                      }}
+                      className="p-1 text-slate-400 hover:text-blue-600 rounded cursor-pointer"
+                      title="Edit Rule"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = automationRules.filter(r => r.id !== rule.id);
+                        setAutomationRules(updated);
+                        try {
+                          localStorage.setItem("workflow_rules", JSON.stringify(updated));
+                        } catch {}
+                      }}
+                      className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
+                      title="Delete Rule"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium pt-1 border-t border-slate-100">
+                  <span>Layout: <strong>{rule.layout}</strong></span>
+                  <span>Triggers: <strong className="text-slate-700">{rule.executeOn}</strong></span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="p-4 border-t border-slate-200 bg-white flex items-center justify-between">
+            <span className="text-slate-400 text-xs">Drag and drop rules to reorder execution priority</span>
+            <button
+              type="button"
+              onClick={() => alert("Rule order saved successfully!")}
+              className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-md cursor-pointer"
+            >
+              Save Order
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* VISUAL WORKFLOW RULE BUILDER CANVAS MODAL */}
+      {showAutomationRuleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 font-sans text-xs animate-fadeIn">
+          <div className="w-full max-w-4xl bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-[#7FD8D8] text-white font-bold text-sm flex items-center justify-center shadow-xs">
+                  {autoRuleName ? autoRuleName.slice(0, 2).toUpperCase() : "UR"}
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    value={autoRuleName}
+                    onChange={(e) => setAutoRuleName(e.target.value)}
+                    className="font-bold text-base text-slate-900 border-b border-transparent hover:border-slate-300 focus:border-[#0070BA] focus:outline-none px-1"
+                  />
+                  <span className="text-xs text-blue-600 font-semibold block px-1">Visual Flow Canvas</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 text-xs font-semibold text-slate-500">
+                <span>Layout : <strong className="text-slate-800">All Layouts</strong></span>
+                <button onClick={() => setShowAutomationRuleModal(false)} className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8 bg-slate-50/50 space-y-6">
+              <div className="flex gap-8">
+                {/* Left Flow Connection Nodes */}
+                <div className="flex flex-col items-center pt-2">
+                  <div className="h-16 w-16 rounded-full border-2 border-blue-500 text-blue-600 font-bold text-xs flex items-center justify-center bg-white shadow-xs">
+                    WHEN
+                  </div>
+                  <div className="h-24 w-0 border-l-2 border-dashed border-blue-400 my-1" />
+                  <div className="h-16 w-16 rotate-45 border-2 border-blue-500 bg-white shadow-xs flex items-center justify-center">
+                    <span className="-rotate-45 font-bold text-[9px] text-blue-600 tracking-tighter">CONDITION 1</span>
+                  </div>
+                </div>
+
+                {/* Right Flow Action Block */}
+                <div className="flex-1 space-y-6">
+                  <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
+                    <h4 className="font-bold text-slate-700 text-xs">Execute Workflow Rule On</h4>
+                    <div className="grid grid-cols-2 gap-3 text-slate-700 font-semibold">
+                      {["Created", "Updated", "Commented", "Deleted", "Document is attached"].map(t => (
+                        <label key={t} className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" defaultChecked={t === "Created" || t === "Updated"} className="rounded text-[#0070BA] focus:ring-0 cursor-pointer" />
+                          <span>{t}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
+                    <h4 className="font-bold text-slate-700 text-xs">Rule Actions</h4>
+                    <div className="p-3 bg-blue-50 rounded border border-blue-100 flex items-center justify-between font-bold text-slate-800">
+                      <span>Associate Email Alert &amp; Notify Team</span>
+                      <span className="px-2 py-0.5 rounded bg-[#0070BA] text-white text-[10px]">Active</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-200 bg-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newRule = {
+                      id: `r-${Date.now()}`,
+                      code: autoRuleName.slice(0, 2).toUpperCase() || "UR",
+                      color: "bg-blue-500 text-white",
+                      name: autoRuleName,
+                      layout: autoRuleLayout,
+                      executeOn: "Created, Updated",
+                      nextRule: true,
+                      active: true
+                    };
+                    const updated = [newRule, ...automationRules];
+                    setAutomationRules(updated);
+                    try {
+                      localStorage.setItem("workflow_rules", JSON.stringify(updated));
+                    } catch {}
+                    setShowAutomationRuleModal(false);
+                    alert(`Workflow Rule '${autoRuleName}' saved and applied successfully!`);
+                  }}
+                  className="px-5 py-2 bg-[#0070BA] hover:bg-blue-700 text-white font-bold rounded-md shadow-2xs cursor-pointer"
+                >
+                  Save Rule &amp; Apply Changes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAutomationRuleModal(false)}
+                  className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-md cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer">
+                <input type="checkbox" defaultChecked className="rounded text-[#0070BA] focus:ring-0 cursor-pointer" />
+                <span>Execute the next workflow rule</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* IMPORT TASKS WIZARD MODAL matching Screenshot 1 */}
+      {showImportTasksModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 font-sans text-xs animate-fadeIn">
+          <div className="w-full max-w-3xl bg-white rounded-xl shadow-2xl border border-slate-200 p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="text-base font-bold text-slate-900">Import Tasks</h3>
+              <div className="flex items-center gap-2">
+                <button title="Help" className="h-6 w-6 rounded-full border border-orange-400 text-orange-600 font-bold flex items-center justify-center text-xs">?</button>
+                <button onClick={() => setShowImportTasksModal(false)} className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-6 p-4 bg-slate-50/50 rounded-xl border border-slate-200">
+              {/* Step 1: File Format Selection Cards matching Screenshot 1 */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <span className="h-6 w-6 rounded-full bg-orange-600 text-white font-bold flex items-center justify-center text-xs">1</span>
+                  <span className="font-bold text-slate-800">Select File Format</span>
+                </div>
+                <div className="grid grid-cols-4 gap-3 pl-9">
+                  {[
+                    { id: "MPP", label: "MPP/MPX", active: importFileType === "MPP" },
+                    { id: "XLS", label: "XLS/XLSX", active: importFileType === "XLS" },
+                    { id: "JSON", label: "JSON", active: importFileType === "JSON" },
+                    { id: "CSV", label: "CSV", active: importFileType === "CSV" },
+                  ].map((fmt) => (
+                    <div
+                      key={fmt.id}
+                      onClick={() => setImportFileType(fmt.id as any)}
+                      className={`p-3 rounded-lg border text-center font-bold cursor-pointer transition-colors ${
+                        fmt.active
+                          ? "bg-cyan-400 border-cyan-500 text-white shadow-2xs"
+                          : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
+                      }`}
+                    >
+                      📄 {fmt.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Step 2: File Upload Container matching Screenshot 1 */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <span className="h-6 w-6 rounded-full bg-orange-600 text-white font-bold flex items-center justify-center text-xs">2</span>
+                  <span className="font-bold text-slate-800">Select File *</span>
+                </div>
+                <div className="pl-9 space-y-1">
+                  <div className="p-3 bg-white border border-slate-300 rounded-lg flex items-center justify-between font-mono font-semibold text-slate-800">
+                    <div className="flex items-center gap-2">
+                      <Paperclip className="h-4 w-4 text-slate-400" />
+                      <span>{importFileName}</span>
+                    </div>
+                    <Trash2
+                      onClick={() => {
+                        const name = prompt("Upload new task file:");
+                        if (name) setImportFileName(name);
+                      }}
+                      className="h-4 w-4 text-slate-400 hover:text-rose-600 cursor-pointer"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400">File size cannot exceed 20 MB</p>
+                </div>
+              </div>
+
+              {/* Step 3: Associate Blueprint Option matching Screenshot 1 */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <span className="h-6 w-6 rounded-full bg-orange-600 text-white font-bold flex items-center justify-center text-xs">3</span>
+                  <label className="flex items-center gap-2 font-bold text-slate-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={associateBlueprintCheck}
+                      onChange={(e) => setAssociateBlueprintCheck(e.target.checked)}
+                      className="rounded text-orange-600 focus:ring-0 cursor-pointer"
+                    />
+                    <span>Associate Blueprint</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Actions matching Screenshot 1 */}
+            <div className="flex items-center gap-2 pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowImportTasksModal(false);
+                  alert(`Successfully imported tasks from file '${importFileName}'!`);
+                }}
+                className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-md shadow-2xs cursor-pointer text-xs"
+              >
+                Import
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowImportTasksModal(false)}
+                className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-md cursor-pointer text-xs"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

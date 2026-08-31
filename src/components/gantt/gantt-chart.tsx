@@ -21,17 +21,24 @@ interface GanttChartProps {
 interface GanttTask extends Task {
   startOffset: number;
   durationDays: number;
+  startMs: number;
+  endMs: number;
+  isCritical?: boolean;
+  slackDays?: number;
 }
 
 interface DepLink {
   from: GanttTask;
   to: GanttTask;
   type: DependencyType;
+  isCritical?: boolean;
 }
 
 export default function GanttChart({ tasks, dependencies, onTaskClick, startDate }: GanttChartProps) {
   const [scale, setScale] = useState<number>(20);
   const [currentTime, setCurrentTime] = useState<Date>(startDate || new Date());
+  const [showCriticalPath, setShowCriticalPath] = useState<boolean>(true);
+  const [showSlack, setShowSlack] = useState<boolean>(true);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -57,8 +64,9 @@ export default function GanttChart({ tasks, dependencies, onTaskClick, startDate
   const chartWidth = days.length * dayWidth;
   const chartHeight = Math.max(tasks.length * (BAR_HEIGHT + ROW_GAP) + HEADER_HEIGHT + 60, 200);
 
+  // Critical Path & Slack Calculation Engine
   const visibleTasks: GanttTask[] = useMemo(() => {
-    return tasks
+    const mapped = tasks
       .filter((t) => t.dueDate || t.startDate)
       .map((task) => {
         const taskStartStr = task.startDate || task.dueDate || "";
@@ -73,19 +81,57 @@ export default function GanttChart({ tasks, dependencies, onTaskClick, startDate
           durationDays,
           startMs,
           endMs,
+          isCritical: false,
+          slackDays: 0,
         };
       });
-  }, [tasks, currentTime]);
 
-  const dependencyLinks: DepLink[] = useMemo(() => {
+    if (mapped.length === 0) return mapped;
+
+    // Calculate max end date & identify critical chain (tasks ending latest or on zero float path)
+    const maxEndMs = Math.max(...mapped.map((t) => t.endMs));
+    return mapped.map((task) => {
+      // Find successor tasks
+      const directSuccessors = dependencies
+        .filter((d) => d.dependsOnTaskId === task.id)
+        .map((d) => mapped.find((m) => m.id === d.taskId))
+        .filter(Boolean) as GanttTask[];
+
+      let slackDays = 0;
+      if (directSuccessors.length > 0) {
+        const minSuccessorStart = Math.min(...directSuccessors.map((s) => s.startMs));
+        slackDays = Math.max(0, Math.round((minSuccessorStart - task.endMs) / (1000 * 60 * 60 * 24)));
+      } else {
+        slackDays = Math.max(0, Math.round((maxEndMs - task.endMs) / (1000 * 60 * 60 * 24)));
+      }
+
+      // Mark as critical if slack is 0 or task finishes on project finish date
+      const isCritical = slackDays === 0 || task.endMs === maxEndMs;
+
+      return {
+        ...task,
+        isCritical,
+        slackDays,
+      };
+    });
+  }, [tasks, dependencies, currentTime]);
+
+  const dependencyLinks = useMemo<DepLink[]>(() => {
     return visibleTasks.flatMap((task) => {
       const taskDeps = dependencies.filter((d) => d.taskId === task.id);
-      return taskDeps
-        .map((dep) => {
-          const dependent = visibleTasks.find((t) => t.id === dep.dependsOnTaskId);
-          return dependent ? { from: task, to: dependent, type: dep.type } : null;
-        })
-        .filter((l): l is DepLink => l !== null);
+      const links: DepLink[] = [];
+      for (const dep of taskDeps) {
+        const dependent = visibleTasks.find((t) => t.id === dep.dependsOnTaskId);
+        if (dependent) {
+          links.push({
+            from: task,
+            to: dependent,
+            type: dep.type,
+            isCritical: !!(task.isCritical && dependent.isCritical),
+          });
+        }
+      }
+      return links;
     });
   }, [visibleTasks, dependencies]);
 
@@ -110,22 +156,43 @@ export default function GanttChart({ tasks, dependencies, onTaskClick, startDate
           </span>
         </div>
 
-        <div className="flex items-center gap-4 text-xs font-semibold text-slate-600">
+        <div className="flex items-center gap-3 text-xs font-semibold text-slate-600">
+          {/* Smart Bar Controls for Critical Path & Slack */}
+          <div className="flex items-center gap-2 border-r border-slate-200 pr-3">
+            <button
+              type="button"
+              onClick={() => setShowCriticalPath(!showCriticalPath)}
+              className={`px-2.5 py-1 rounded-full font-bold text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer ${
+                showCriticalPath
+                  ? "bg-rose-100 text-rose-700 border border-rose-300"
+                  : "bg-slate-100 text-slate-500 border border-slate-200"
+              }`}
+            >
+              <span className={`h-2 w-2 rounded-full ${showCriticalPath ? "bg-rose-600 animate-pulse" : "bg-slate-400"}`} />
+              <span>Critical Path</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowSlack(!showSlack)}
+              className={`px-2.5 py-1 rounded-full font-bold text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer ${
+                showSlack
+                  ? "bg-blue-100 text-blue-700 border border-blue-300"
+                  : "bg-slate-100 text-slate-500 border border-slate-200"
+              }`}
+            >
+              <span className={`h-2 w-2 rounded-full ${showSlack ? "bg-blue-600" : "bg-slate-400"}`} />
+              <span>Slack (Float)</span>
+            </button>
+          </div>
+
           <div className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-[#0070BA]" />
             <span>Finish to Start (FS)</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-purple-600" />
-            <span>Start to Start (SS)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-600" />
-            <span>Finish to Finish (FF)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-amber-600" />
-            <span>Start to Finish (SF)</span>
+            <span className="h-2.5 w-2.5 rounded-full bg-rose-600" />
+            <span>Critical Link</span>
           </div>
           <button onClick={() => setScale(Math.max(10, scale - 2))} className="rounded-md border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100">
             <ZoomOut className="h-4 w-4" />
@@ -175,13 +242,14 @@ export default function GanttChart({ tasks, dependencies, onTaskClick, startDate
             const toX = link.to.startOffset * dayWidth;
             const fromY = fromRow * (BAR_HEIGHT + ROW_GAP) + HEADER_HEIGHT + BAR_HEIGHT / 2;
             const toY = toRow * (BAR_HEIGHT + ROW_GAP) + HEADER_HEIGHT + BAR_HEIGHT / 2;
+            const isCriticalLink = showCriticalPath && link.isCritical;
 
             return (
               <path
                 key={`dep-${i}`}
                 d={drawDependencyPath(fromX, fromY, toX, toY)}
-                stroke="#ef4444"
-                strokeWidth={2}
+                stroke={isCriticalLink ? "#EF4444" : "#0070BA"}
+                strokeWidth={isCriticalLink ? 3 : 2}
                 fill="none"
                 markerEnd="url(#arrowhead)"
               />
@@ -194,11 +262,15 @@ export default function GanttChart({ tasks, dependencies, onTaskClick, startDate
             </marker>
           </defs>
 
-          {/* Task bars */}
+          {/* Task bars & Dotted Slack Lines */}
           {visibleTasks.map((task, idx) => {
             const rowY = HEADER_HEIGHT + idx * (BAR_HEIGHT + ROW_GAP);
             const barX = task.startOffset * dayWidth;
             const barWidth = Math.max(8, task.durationDays * dayWidth);
+            const slackWidth = (task.slackDays || 0) * dayWidth;
+            const isCriticalTask = showCriticalPath && task.isCritical;
+            const barColor = isCriticalTask ? "#EF4444" : getStatusColor(task.status);
+
             const progressPct = task.loggedHours && task.estimatedHours
               ? Math.min(1, task.loggedHours / task.estimatedHours)
               : 0;
@@ -206,16 +278,41 @@ export default function GanttChart({ tasks, dependencies, onTaskClick, startDate
 
             return (
               <g key={task.id}>
+                {/* Dotted Slack Line representing float */}
+                {showSlack && slackWidth > 0 && !isCriticalTask && (
+                  <g>
+                    <line
+                      x1={barX + barWidth}
+                      y1={rowY + BAR_HEIGHT / 2}
+                      x2={barX + barWidth + slackWidth}
+                      y2={rowY + BAR_HEIGHT / 2}
+                      stroke="#0070BA"
+                      strokeWidth={2}
+                      strokeDasharray="4 4"
+                    />
+                    <text
+                      x={barX + barWidth + slackWidth / 2}
+                      y={rowY + BAR_HEIGHT / 2 - 4}
+                      fontSize={9}
+                      fill="#0070BA"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      Slack: {task.slackDays}d
+                    </text>
+                  </g>
+                )}
+
                 <rect
                   x={barX}
                   y={rowY}
                   width={barWidth}
                   height={BAR_HEIGHT}
                   rx={4}
-                  fill={getStatusColor(task.status)}
-                  fillOpacity={0.15}
-                  stroke={getStatusColor(task.status)}
-                  strokeWidth={1.5}
+                  fill={barColor}
+                  fillOpacity={isCriticalTask ? 0.85 : 0.15}
+                  stroke={barColor}
+                  strokeWidth={isCriticalTask ? 2 : 1.5}
                   onClick={() => onTaskClick(task)}
                   style={{ cursor: "pointer" }}
                 />
@@ -225,11 +322,12 @@ export default function GanttChart({ tasks, dependencies, onTaskClick, startDate
                   width={barWidth * Math.max(0.05, progressPct)}
                   height={BAR_HEIGHT}
                   rx={4}
-                  fill={getStatusColor(task.status)}
-                  fillOpacity={0.6}
+                  fill={barColor}
+                  fillOpacity={isCriticalTask ? 1 : 0.6}
                 />
-                <text x={barX + 6} y={rowY + 20} fontSize={11} fill="#334155" fontWeight="500">
+                <text x={barX + 6} y={rowY + 20} fontSize={11} fill={isCriticalTask ? "#FFFFFF" : "#334155"} fontWeight="bold">
                   {task.title.length > 20 ? task.title.slice(0, 20) + "..." : task.title}
+                  {isCriticalTask && " 🔴 CRITICAL"}
                 </text>
                 {isToday && (
                   <line x1={barX + barWidth} y1={rowY} x2={barX + barWidth} y2={rowY + BAR_HEIGHT} stroke="#3b82f6" strokeWidth={2} />

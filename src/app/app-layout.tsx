@@ -274,16 +274,33 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <Search className="h-3 w-3 text-slate-500 hover:text-slate-300 cursor-pointer" />
               </div>
               <div className="mt-1 space-y-1">
-                {recentProjects.map((p) => (
-                  <Link
-                    key={p.id}
-                    href="/projects"
-                    className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold text-blue-400 hover:bg-slate-800/60 hover:text-blue-300 transition-colors truncate cursor-pointer"
-                  >
-                    <Folder className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
-                    <span className="truncate">{p.name}</span>
-                  </Link>
-                ))}
+                {(() => {
+                  let customProjs: any[] = [];
+                  if (typeof window !== "undefined") {
+                    try {
+                      customProjs = JSON.parse(localStorage.getItem("user_custom_projects") || "[]");
+                    } catch {}
+                  }
+                  const combined = [
+                    ...customProjs,
+                    { name: "01 PoC Projects", id: "poc-1" },
+                    { name: "06 Monthly Miscellaneous Tasks", id: "misc-6" },
+                    { name: "07 Command Center Automation", id: "auto-7" },
+                  ];
+                  // Unique by id
+                  const uniqueProjs = Array.from(new Map(combined.map(p => [p.id, p])).values()).slice(0, 6);
+
+                  return uniqueProjs.map((p) => (
+                    <Link
+                      key={p.id}
+                      href={`/projects/${p.id}`}
+                      className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold text-blue-400 hover:bg-slate-800/60 hover:text-blue-300 transition-colors truncate cursor-pointer"
+                    >
+                      <Folder className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
+                      <span className="truncate">{p.name}</span>
+                    </Link>
+                  ));
+                })()}
               </div>
             </div>
           )}

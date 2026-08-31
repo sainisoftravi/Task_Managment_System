@@ -52,18 +52,65 @@ export default function ProjectOverviewPage() {
   }, [id]);
 
   async function fetchProject() {
-    const res = await fetch(`/api/projects/${id}`, { headers });
-    if (res.ok) {
-      const data = await res.json();
-      const proj = data.project;
-      setProject(proj);
-
-      const allTasks: Task[] = proj.tasks || [];
-      setTasks(allTasks);
-      setDependencies(proj.dependencies || extractDeps(allTasks));
-      setTaskLists(proj.taskLists || []);
-      setMilestones(proj.milestones || []);
+    try {
+      const res = await fetch(`/api/projects/${id}`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        const proj = data.project;
+        if (proj) {
+          setProject(proj);
+          const allTasks: Task[] = proj.tasks || [];
+          setTasks(allTasks);
+          setDependencies(proj.dependencies || extractDeps(allTasks));
+          setTaskLists(proj.taskLists || []);
+          setMilestones(proj.milestones || []);
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("Backend project API fetch error, checking local storage:", e);
     }
+
+    // LocalStorage Fallback for user-created custom projects
+    try {
+      const customProjects: Project[] = JSON.parse(localStorage.getItem("user_custom_projects") || "[]");
+      const found = customProjects.find(
+        (p) =>
+          p.id === id ||
+          p.key === id ||
+          (p.id && p.id.toLowerCase() === id.toLowerCase()) ||
+          (p.key && p.key.toLowerCase() === id.toLowerCase())
+      );
+
+      if (found) {
+        setProject(found);
+        // Load custom tasks for this project
+        const customTasks: Task[] = JSON.parse(
+          localStorage.getItem(`user_custom_tasks_${found.id}`) || localStorage.getItem("user_custom_tasks") || "[]"
+        );
+        const matchingTasks = customTasks.filter(
+          (t) => !t.projectId || t.projectId === found.id || t.projectId === id
+        );
+        setTasks(matchingTasks);
+        setDependencies(extractDeps(matchingTasks));
+
+        // Load custom task lists for this project
+        const storedLists = JSON.parse(localStorage.getItem(`custom_task_lists_${found.id}`) || "[]");
+        const defaultLists: TaskList[] = [
+          { id: `tl-gen-${found.id}`, name: "General Tasks", projectId: found.id, sortOrder: 1, createdAt: new Date().toISOString(), tasks: [] } as any,
+          { id: `tl-[#0070BA]-${found.id}`, name: "Development & Engineering", projectId: found.id, sortOrder: 2, createdAt: new Date().toISOString(), tasks: [] } as any,
+        ];
+        const rawFound = found as any;
+        setTaskLists(storedLists.length > 0 ? storedLists : rawFound.taskLists && rawFound.taskLists.length > 0 ? rawFound.taskLists : defaultLists);
+        setMilestones(rawFound.milestones || []);
+        setLoading(false);
+        return;
+      }
+    } catch (err) {
+      console.error("LocalStorage project lookup error:", err);
+    }
+
     setLoading(false);
   }
 
