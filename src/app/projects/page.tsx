@@ -34,6 +34,117 @@ import { formatDate, generateProjectKey, getNextSequentialProjectKey } from "@/l
 import ProjectGanttView from "@/components/projects/project-gantt-view";
 import TemplateGalleryModal from "@/components/projects/template-gallery-modal";
 
+const DEFAULT_PROJECTS: Project[] = [
+  {
+    id: "proj-dt-31",
+    key: "DT-31",
+    name: "07 Command Center Automation",
+    status: "ACTIVE",
+    pct: 0,
+    owner: { id: "u2", name: "Divakar Pandiy", email: "divakar@taskpmp.local" },
+    _count: { tasks: 1, milestones: 0, timeLogs: 0 },
+    budgetVariance: "+$0 (Surplus)",
+    startDate: "2026-07-01",
+    dueDate: "2026-08-31",
+  } as any,
+  {
+    id: "proj-dt-30",
+    key: "DT-30",
+    name: "06 Monthly Miscellaneous Tasks",
+    status: "ACTIVE",
+    pct: 45,
+    owner: { id: "u1", name: "Ravi Saini", email: "ravi@taskpmp.local" },
+    _count: { tasks: 18, milestones: 0, timeLogs: 5 },
+    budgetVariance: "+$0 (Surplus)",
+    startDate: "2026-01-01",
+    dueDate: "2029-12-31",
+  } as any,
+  {
+    id: "proj-dt-21",
+    key: "DT-21",
+    name: "01 PoC Projects",
+    status: "ACTIVE",
+    pct: 77,
+    owner: { id: "u3", name: "Sushil Verma", email: "sushil@taskpmp.local" },
+    _count: { tasks: 15, milestones: 0, timeLogs: 8 },
+    budgetVariance: "+$0 (Surplus)",
+    startDate: "2025-11-01",
+    dueDate: "2031-11-30",
+  } as any,
+  {
+    id: "proj-dt-03",
+    key: "DT-03",
+    name: "03 data demo",
+    status: "ACTIVE",
+    pct: 0,
+    owner: { id: "u1", name: "Admin User", email: "admin@taskpmp.local" },
+    _count: { tasks: 4, milestones: 0, timeLogs: 0 },
+    budgetVariance: "+$0 (Surplus)",
+    startDate: "2026-08-01",
+    dueDate: "2026-12-31",
+  } as any,
+  {
+    id: "proj-dt-01",
+    key: "DT-01",
+    name: "01 Demo",
+    status: "ACTIVE",
+    pct: 0,
+    owner: { id: "u1", name: "Admin User", email: "admin@taskpmp.local" },
+    _count: { tasks: 3, milestones: 0, timeLogs: 0 },
+    budgetVariance: "+$0 (Surplus)",
+    startDate: "2026-08-15",
+    dueDate: "2026-11-30",
+  } as any,
+  {
+    id: "proj-dt-02",
+    key: "DT-02",
+    name: "01 Demo Test Project Creation",
+    status: "ACTIVE",
+    pct: 0,
+    owner: { id: "u1", name: "Admin User", email: "admin@taskpmp.local" },
+    _count: { tasks: 0, milestones: 0, timeLogs: 0 },
+    budgetVariance: "+$0 (Surplus)",
+    startDate: "2026-08-31",
+    dueDate: "2027-01-07",
+  } as any,
+  {
+    id: "proj-dt-04",
+    key: "DT-04",
+    name: "dsdd",
+    status: "ACTIVE",
+    pct: 0,
+    owner: { id: "u1", name: "Admin User", email: "admin@taskpmp.local" },
+    _count: { tasks: 0, milestones: 0, timeLogs: 0 },
+    budgetVariance: "+$0 (Surplus)",
+    startDate: "2026-08-31",
+    dueDate: "2027-01-07",
+  } as any,
+  {
+    id: "proj-dt-05",
+    key: "DT-05",
+    name: "demo",
+    status: "ACTIVE",
+    pct: 0,
+    owner: { id: "u1", name: "Admin User", email: "admin@taskpmp.local" },
+    _count: { tasks: 0, milestones: 0, timeLogs: 0 },
+    budgetVariance: "+$0 (Surplus)",
+    startDate: "2026-08-31",
+    dueDate: "2027-01-07",
+  } as any,
+  {
+    id: "proj-dt-06",
+    key: "DT-06",
+    name: "01 Demo Project Test",
+    status: "ACTIVE",
+    pct: 0,
+    owner: { id: "u1", name: "Admin User", email: "admin@taskpmp.local" },
+    _count: { tasks: 0, milestones: 0, timeLogs: 0 },
+    budgetVariance: "+$0 (Surplus)",
+    startDate: "2026-08-31",
+    dueDate: "2027-01-07",
+  } as any,
+];
+
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,7 +208,7 @@ export default function ProjectsPage() {
     } catch {}
 
     const allMap = new Map<string, Project>();
-    [...customProjects, ...loaded].forEach((p) => {
+    [...customProjects, ...loaded, ...DEFAULT_PROJECTS].forEach((p) => {
       if (p && p.id && !allMap.has(p.id)) {
         allMap.set(p.id, p);
       }

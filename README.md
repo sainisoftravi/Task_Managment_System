@@ -2,6 +2,129 @@
 
 **TaskPMP Enterprise** is a full-stack, unified Ticket & Project Management web application built with **Next.js 15**, **TypeScript**, **Prisma ORM**, **Tailwind CSS**, and **WebSocket** real-time updates.
 
+
+---
+
+## 🏗️ Architecture & Codebase Structure Mapping
+
+Complete mapping of UI pages, routes, components, backend API endpoints, and database models is documented in [`ARCHITECTURE.md`](file:///e:/Antigravity-clie/Task&PMP-System/ARCHITECTURE.md).
+
+---
+
+## 🗄️ Database Architecture & Schema Documentation
+
+The system runs on **Prisma ORM** with **PostgreSQL / SQLite** database engines. The schema consists of **18 relational models** providing full relational integrity across help-desk ticketing, task management, time tracking, SLA enforcement, and team permissions.
+
+### Database Entity-Relationship (ER) Diagram
+
+```mermaid
+erDiagram
+    User ||--o{ Ticket : "assignee / author"
+    User ||--o{ Task : "assignee"
+    User ||--o{ Project : "owner"
+    User ||--o{ ProjectMember : "member"
+    User ||--o{ TimeLog : "logger"
+    User ||--o{ TicketComment : "author"
+    User ||--o{ KnowledgeBaseArticle : "author"
+
+    Team ||--o{ User : "members"
+    Team ||--o{ Project : "projects"
+    Team ||--o{ Ticket : "tickets"
+
+    Customer ||--o{ Ticket : "issues"
+
+    Project ||--o{ Milestone : "milestones"
+    Project ||--o{ TaskList : "taskLists"
+    Project ||--o{ Task : "tasks"
+    Project ||--o{ ProjectMember : "members"
+    Project ||--o{ Ticket : "linkedTickets"
+
+    Milestone ||--o{ TaskList : "lists"
+    TaskList ||--o{ Task : "tasks"
+
+    Task ||--o{ Task : "subtasks"
+    Task ||--o{ TaskDependency : "dependencies"
+    Task ||--o{ TimeLog : "timeLogs"
+    Ticket ||--o{ TicketComment : "comments"
+    Ticket ||--o{ TimeLog : "timeLogs"
+    Ticket ||--o| Task : "convertedFromTicket"
+
+    SlaPolicy ||--o{ SlaEscalation : "escalations"
+    KnowledgeBaseArticle ||--o{ TicketKbArticle : "ticketLinks"
+```
+
+---
+
+### Database Schema Models & Relationships
+
+| Model Name | Table Name | Key Fields & Attributes | Relations | Description & Usage |
+| :--- | :--- | :--- | :--- | :--- |
+| **`User`** | `User` | `id`, `email`, `password`, `name`, `role`, `teamId`, `avatar` | Team, Tickets, Tasks, Projects, TimeLogs | System users, support agents, project managers, and administrators. |
+| **`Team`** | `Team` | `id`, `name`, `slug` | Users, Projects, Tickets | Organizational teams and department groupings. |
+| **`Customer`** | `Customer` | `id`, `name`, `email`, `company`, `phone` | Tickets | External customers submitting helpdesk tickets. |
+| **`Project`** | `Project` | `id`, `name`, `key`, `status`, `startDate`, `dueDate`, `ownerId` | Owner, Team, Tasks, TaskLists, Milestones | High-level project containers with unique prefixes (e.g. `DT-01`). |
+| **`ProjectMember`** | `ProjectMember` | `id`, `projectId`, `userId`, `role` | Project, User | Association table mapping users to projects with granular roles. |
+| **`Milestone`** | `Milestone` | `id`, `projectId`, `name`, `dueDate`, `completed` | Project, TaskLists | Major project phase milestones and delivery targets. |
+| **`TaskList`** | `TaskList` | `id`, `projectId`, `milestoneId`, `name`, `sortOrder` | Project, Milestone, Tasks | Task containers grouping tasks into operational stages. |
+| **`Task`** | `Task` | `id`, `projectId`, `title`, `status`, `priority`, `assigneeId`, `parentTaskId` | Project, Assignee, TaskList, Subtasks, Dependencies | Granular project tasks supporting up to 6 levels of subtasks & dependencies. |
+| **`TaskDependency`** | `TaskDependency` | `id`, `taskId`, `dependsOnTaskId`, `type` | Task (Predecessor & Successor) | Task dependency links (`FINISH_TO_START`, `START_TO_START`, `FINISH_TO_FINISH`, `START_TO_FINISH`). |
+| **`Ticket`** | `Ticket` | `id`, `title`, `status`, `priority`, `slaBreached`, `customerId`, `projectId` | Customer, Assignee, Project, Task, Comments | Help-desk tickets with SLA countdown timers and bridge conversion to tasks. |
+| **`TicketComment`** | `TicketComment` | `id`, `ticketId`, `authorId`, `content`, `type` | Ticket, Author | Threaded discussion comments (Internal Notes vs Public Replies). |
+| **`TimeLog`** | `TimeLog` | `id`, `userId`, `taskId`, `ticketId`, `projectId`, `durationMinutes` | User, Task, Ticket, Project | Work hour logs for billable vs non-billable time tracking. |
+| **`SlaPolicy`** | `SlaPolicy` | `id`, `name`, `priority`, `responseTimeMinutes`, `resolutionTimeMinutes` | Escalations, Owner | Service Level Agreement policies for ticket response & resolution times. |
+| **`SlaEscalation`** | `SlaEscalation` | `id`, `slaPolicyId`, `afterMinutes`, `action`, `targetRoleId` | SlaPolicy | Escalation triggers firing upon SLA breaches. |
+| **`KnowledgeBaseArticle`** | `KnowledgeBaseArticle` | `id`, `title`, `slug`, `content`, `published`, `helpfulCount` | Author, TicketLinks | Learning materials, feature documentation, and self-service articles. |
+| **`Notification`** | `Notification` | `id`, `userId`, `title`, `message`, `read`, `entityId` | User, Ticket, Project, Task | In-app notification alerts for status updates and mentions. |
+| **`Activity`** | `Activity` | `id`, `userId`, `action`, `details`, `entityId` | User, Ticket, Project, Task | Audit trail tracking all creation, editing, and deletion operations. |
+
+---
+
+### Database Operations (CRUD Architecture)
+
+- **Create (Inserting)**:
+  - Frontend triggers `POST` requests to API endpoints (e.g. `POST /api/projects`, `POST /api/tasks`).
+  - Prisma client executes type-safe creation: `prisma.project.create({ data: { ... } })`.
+  - Fail-safe dual storage automatically mirrors custom entries to `localStorage` for offline availability.
+- **Read (Searching & Querying)**:
+  - Frontend queries endpoints with filters (e.g. `GET /api/tasks?status=IN_PROGRESS&projectId=p1`).
+  - Indexed fields (`status`, `priority`, `assigneeId`, `key`, `dueDate`) accelerate ripgrep/B-Tree searches in database.
+- **Update (Modifying)**:
+  - `PATCH` endpoints update field subsets (`prisma.task.update({ where: { id }, data: { status } })`).
+  - WebSocket engine broadcasts real-time `task:updated` payloads to connected clients on port 3001.
+- **Delete (Trashing)**:
+  - `DELETE` endpoints soft-delete or remove records (`prisma.task.delete({ where: { id } })`).
+  - Cascade relations clean up associated dependencies and time logs.
+
+---
+
+### 💻 Database CLI Commands
+
+Execute these commands in your shell to inspect, update, migrate, or seed the database:
+
+```bash
+# Push Prisma schema changes directly to the database
+npm run prisma:push
+# Or using npx:
+npx prisma db push
+
+# Launch interactive Prisma Studio database GUI (Opens on http://localhost:5555)
+npm run prisma:studio
+# Or using npx:
+npx prisma studio
+
+# Seed database with sample test data (4 users, 2 projects, 4 tasks, 3 tickets, SLA policies)
+npm run db:seed
+# Or using npx:
+npx prisma db seed
+
+# Run Prisma schema formatting and validation
+npx prisma format
+npx prisma validate
+
+# Generate updated Prisma Client TypeScript definitions
+npx prisma generate
+```
+
 ---
 
 ## 🌟 Key Platform Features
