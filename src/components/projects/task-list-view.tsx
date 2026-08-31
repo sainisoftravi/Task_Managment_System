@@ -29,7 +29,10 @@ import {
   Move,
   CopyPlus,
   Trash2,
-  Eye
+  Eye,
+  Info,
+  Edit,
+  Check
 } from "lucide-react";
 import TaskDetailDrawer from "@/components/projects/task-detail-drawer";
 import CreateTaskListModal from "@/components/projects/create-task-list-modal";
@@ -66,6 +69,53 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
   // Active duration popover row ID & active row context menu ID
   const [activeDurationPopoverId, setActiveDurationPopoverId] = useState<string | null>(null);
   const [activeRowMenuId, setActiveRowMenuId] = useState<string | null>(null);
+
+  // Task Custom Views State matching Screenshots 1, 2, 3, 4
+  const [activeViewName, setActiveViewName] = useState("All Open");
+  const [showViewsDropdown, setShowViewsDropdown] = useState(false);
+  const [viewsSearch, setViewsSearch] = useState("");
+  const [showCustomViewModal, setShowCustomViewModal] = useState(false);
+  const [editingCustomViewId, setEditingCustomViewId] = useState<string | null>(null);
+
+  // Custom View Form State (Screenshots 1 & 2)
+  const [cvName, setCvName] = useState("");
+  const [cvDescription, setCvDescription] = useState("");
+  const [cvCustomizeColumns, setCvCustomizeColumns] = useState(true);
+  const [cvShareUsers, setCvShareUsers] = useState(true);
+  const [cvShareType, setCvShareType] = useState<"ALL" | "SPECIFIC">("ALL");
+  const [cvShowGlobalOverview, setCvShowGlobalOverview] = useState(false);
+  const [cvShowOtherProjects, setCvShowOtherProjects] = useState(true);
+  const [cvProjectsScope, setCvProjectsScope] = useState<"ALL" | "SPECIFIC">("ALL");
+  const [cvCriteria, setCvCriteria] = useState<any[]>([
+    { id: "c1", field: "Milestone Owner", op: "Is", val: "Current Login User", logicOp: "AND" },
+    { id: "c2", field: "Milestone Flag", op: "Is", val: "Internal", logicOp: "AND" }
+  ]);
+
+  // Column Customizer Dual List State (Screenshot 1)
+  const [availableColumns, setAvailableColumns] = useState([
+    "picklist", "Custom Field", "Version number", "Estimated Start Date", "Estimated End Date", "Review Date"
+  ]);
+  const [selectedColumns, setSelectedColumns] = useState([
+    "Task Name *", "Associated Team", "Owner", "Status", "Start Date", "Due Date", "Work Hours"
+  ]);
+
+  // My Custom Views List State (Screenshot 4)
+  const [myCustomViews, setMyCustomViews] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem("my_custom_views");
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return [
+      { id: "cv-1", name: "myhighprioritytasks", description: "High priority tasks view", isDefault: false },
+      { id: "cv-2", name: "Design tasks", description: "Design department tasks", isDefault: false },
+      { id: "cv-3", name: "Floor tiling task list", description: "Tiling tasks view", isDefault: false }
+    ];
+  });
+  const [activeCustomViewActionId, setActiveCustomViewActionId] = useState<string | null>(null);
+
+  // Add Column Drawer State (Screenshot 3)
+  const [showAddColumnDrawer, setShowAddColumnDrawer] = useState(false);
+  const [columnDrawerSearch, setColumnDrawerSearch] = useState("");
 
   // Default interactive demo tasks matching Screenshot 1 & 2
   const initialTasksList = [
@@ -431,19 +481,199 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
       {/* Control Bar matching Screenshot 3 & 4 */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-2.5 rounded-md border border-slate-200 shadow-xs">
         <div className="flex items-center gap-3">
-          {/* Status Filter Dropdown */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-800 bg-white focus:border-[#0070BA] focus:outline-none cursor-pointer"
-          >
-            <option value="ALL">All Open ▾</option>
-            <option value="not yet Started">not yet Started</option>
-            <option value="In Progress">In Progress</option>
-            <option value="in QA">in QA</option>
-            <option value="In Review">In Review</option>
-            <option value="Completed">Completed</option>
-          </select>
+          {/* Task Custom Views Dropdown matching Screenshot 4 */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowViewsDropdown(!showViewsDropdown)}
+              className="inline-flex items-center gap-1.5 rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-50 cursor-pointer shadow-2xs"
+            >
+              <span className="text-orange-600 font-bold">{activeViewName}</span>
+              <DropdownIcon className="h-3.5 w-3.5 text-slate-500" />
+            </button>
+
+            {showViewsDropdown && (
+              <div className="absolute left-0 mt-2 z-50 w-64 rounded-xl bg-white p-2 shadow-2xl border border-slate-200 text-xs font-sans animate-fadeIn space-y-2">
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search Views"
+                    value={viewsSearch}
+                    onChange={(e) => setViewsSearch(e.target.value)}
+                    className="w-full rounded-md border border-slate-200 pl-8 pr-2 py-1 text-xs focus:border-[#0070BA] focus:outline-none"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="max-h-72 overflow-y-auto space-y-2 text-slate-700 font-medium">
+                  {/* Predefined Views */}
+                  <div className="space-y-0.5">
+                    {[
+                      { id: "v1", name: "Today's Tasks" },
+                      { id: "v2", name: "Tasks I Follow" },
+                      { id: "v3", name: "Tasks Created By Me", starred: true },
+                      { id: "v4", name: "Task Associated to Team" },
+                      { id: "v5", name: "Assigned Via Pick List" },
+                    ]
+                      .filter((v) => v.name.toLowerCase().includes(viewsSearch.toLowerCase()))
+                      .map((v) => (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveViewName(v.name);
+                            setShowViewsDropdown(false);
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded flex items-center justify-between hover:bg-orange-50 hover:text-orange-600 cursor-pointer text-xs ${
+                            activeViewName === v.name ? "bg-orange-50 text-orange-600 font-bold" : ""
+                          }`}
+                        >
+                          <span>{v.name}</span>
+                          {v.starred && <span className="text-amber-400 text-xs">★</span>}
+                        </button>
+                      ))}
+                  </div>
+
+                  {/* My Custom Views Section matching Screenshot 4 */}
+                  <div className="border-t border-slate-100 pt-2 space-y-1">
+                    <div className="flex items-center justify-between px-2 text-[11px] font-bold text-slate-400 uppercase">
+                      <span>My Custom Views</span>
+                      <Info className="h-3 w-3 text-slate-400" />
+                    </div>
+                    {myCustomViews
+                      .filter((v) => v.name.toLowerCase().includes(viewsSearch.toLowerCase()))
+                      .map((cv) => (
+                        <div key={cv.id} className="relative flex items-center justify-between group">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveViewName(cv.name);
+                              setShowViewsDropdown(false);
+                            }}
+                            className={`w-full text-left px-2.5 py-1.5 rounded truncate hover:bg-orange-50 hover:text-orange-600 cursor-pointer text-xs ${
+                              activeViewName === cv.name ? "bg-orange-50 text-orange-600 font-bold" : ""
+                            }`}
+                          >
+                            <span className="truncate">{cv.name}</span>
+                          </button>
+
+                          {/* Action Popover Menu Trigger matching Screenshot 4 */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveCustomViewActionId(activeCustomViewActionId === cv.id ? null : cv.id);
+                            }}
+                            className="p-1 hover:text-slate-900 text-slate-400 rounded cursor-pointer"
+                          >
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </button>
+
+                          {/* Custom View Context Actions Menu matching Screenshot 4 */}
+                          {activeCustomViewActionId === cv.id && (
+                            <div className="absolute right-0 top-7 z-50 w-44 bg-white rounded-lg border border-slate-200 shadow-2xl py-1 text-slate-800 font-semibold space-y-0.5 animate-fadeIn">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingCustomViewId(cv.id);
+                                  setCvName(cv.name);
+                                  setCvDescription(cv.description || "");
+                                  setShowCustomViewModal(true);
+                                  setActiveCustomViewActionId(null);
+                                }}
+                                className="w-full text-left px-3 py-1.5 hover:bg-slate-100 cursor-pointer flex items-center gap-2 text-xs"
+                              >
+                                <Edit className="h-3.5 w-3.5 text-slate-500" />
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(window.location.href);
+                                  alert("Custom view URL copied to clipboard!");
+                                  setActiveCustomViewActionId(null);
+                                }}
+                                className="w-full text-left px-3 py-1.5 hover:bg-slate-100 cursor-pointer flex items-center gap-2 text-xs"
+                              >
+                                <Copy className="h-3.5 w-3.5 text-slate-500" />
+                                <span>Copy Link</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMyCustomViews(myCustomViews.filter(x => x.id !== cv.id));
+                                  try {
+                                    localStorage.setItem("my_custom_views", JSON.stringify(myCustomViews.filter(x => x.id !== cv.id)));
+                                  } catch {}
+                                  setActiveCustomViewActionId(null);
+                                }}
+                                className="w-full text-left px-3 py-1.5 hover:bg-rose-50 text-rose-600 cursor-pointer flex items-center gap-2 text-xs"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                <span>Delete</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const cloned = { ...cv, id: `cv-${Date.now()}`, name: `${cv.name} Copy` };
+                                  setMyCustomViews([...myCustomViews, cloned]);
+                                  setActiveCustomViewActionId(null);
+                                }}
+                                className="w-full text-left px-3 py-1.5 hover:bg-slate-100 cursor-pointer flex items-center gap-2 text-xs"
+                              >
+                                <CopyPlus className="h-3.5 w-3.5 text-slate-500" />
+                                <span>Clone</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMyCustomViews(myCustomViews.map(x => ({ ...x, isDefault: x.id === cv.id })));
+                                  setActiveViewName(cv.name);
+                                  setActiveCustomViewActionId(null);
+                                  alert(`'${cv.name}' set as default view!`);
+                                }}
+                                className="w-full text-left px-3 py-1.5 hover:bg-slate-100 cursor-pointer flex items-center gap-2 text-xs"
+                              >
+                                <Check className="h-3.5 w-3.5 text-emerald-600" />
+                                <span>Set as default view</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+
+                  {/* Shared Views Section */}
+                  <div className="border-t border-slate-100 pt-2 space-y-1">
+                    <div className="flex items-center justify-between px-2 text-[11px] font-bold text-slate-400 uppercase">
+                      <span>Shared Views</span>
+                      <Info className="h-3 w-3 text-slate-400" />
+                    </div>
+                    <div className="px-2 py-1 text-slate-400 italic text-[11px]">No shared views yet</div>
+                  </div>
+                </div>
+
+                {/* Red Link Trigger matching Screenshot 4 */}
+                <div className="border-t border-slate-100 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingCustomViewId(null);
+                      setCvName("");
+                      setCvDescription("");
+                      setShowCustomViewModal(true);
+                      setShowViewsDropdown(false);
+                    }}
+                    className="w-full text-left px-2 py-1.5 font-bold text-orange-600 hover:underline cursor-pointer text-xs"
+                  >
+                    + Create Custom View
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Group By Trigger Button */}
           <div className="relative">
@@ -1024,6 +1254,383 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
           alert(`Moved task list to project ${project}`);
         }}
       />
+
+      {/* CREATE / EDIT CUSTOM VIEW MODAL matching Screenshots 1 & 2 */}
+      {showCustomViewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs font-sans text-xs p-4 overflow-y-auto">
+          <div className="w-full max-w-4xl bg-white rounded-xl shadow-2xl border border-slate-200 p-6 space-y-6 my-8 animate-fadeIn max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="text-base font-bold text-slate-900">
+                {editingCustomViewId ? "Edit Custom View" : "Create Custom View"}
+              </h3>
+              <button onClick={() => setShowCustomViewModal(false)} className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Criteria Builder Section matching Screenshots 1 & 2 */}
+            <div className="space-y-3">
+              <h4 className="font-bold text-slate-800 text-xs">Criteria</h4>
+              <div className="space-y-2">
+                {cvCriteria.map((crit, idx) => (
+                  <div key={crit.id} className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex-wrap">
+                    {idx > 0 && (
+                      <select
+                        value={crit.logicOp}
+                        onChange={(e) => setCvCriteria(cvCriteria.map(c => c.id === crit.id ? { ...c, logicOp: e.target.value } : c))}
+                        className="p-1.5 border border-slate-300 rounded font-bold text-orange-600 bg-white"
+                      >
+                        <option value="AND">AND</option>
+                        <option value="OR">OR</option>
+                      </select>
+                    )}
+
+                    {/* Field Picker */}
+                    <select
+                      value={crit.field}
+                      onChange={(e) => setCvCriteria(cvCriteria.map(c => c.id === crit.id ? { ...c, field: e.target.value } : c))}
+                      className="p-1.5 border border-slate-300 rounded font-bold text-slate-800 bg-white"
+                    >
+                      <option value="Milestone Owner">Milestone Owner</option>
+                      <option value="Milestone Flag">Milestone Flag</option>
+                      <option value="Task List">Task List</option>
+                      <option value="Associated Team">Associated Team</option>
+                      <option value="Owner">Owner</option>
+                      <option value="Priority">Priority</option>
+                      <option value="Status">Status</option>
+                    </select>
+
+                    {/* Operator Picker */}
+                    <select
+                      value={crit.op}
+                      onChange={(e) => setCvCriteria(cvCriteria.map(c => c.id === crit.id ? { ...c, op: e.target.value } : c))}
+                      className="p-1.5 border border-slate-300 rounded font-bold text-slate-800 bg-white"
+                    >
+                      <option value="Is">Is</option>
+                      <option value="Is Not">Is Not</option>
+                      <option value="Contains">Contains</option>
+                      <option value="Starts With">Starts With</option>
+                    </select>
+
+                    {/* Value Input */}
+                    <input
+                      type="text"
+                      value={crit.val}
+                      onChange={(e) => setCvCriteria(cvCriteria.map(c => c.id === crit.id ? { ...c, val: e.target.value } : c))}
+                      className="p-1.5 border border-slate-300 rounded font-bold text-slate-800 bg-white flex-1 min-w-[140px]"
+                    />
+
+                    {/* Add / Remove Buttons */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setCvCriteria([...cvCriteria, { id: `c-${Date.now()}`, field: "Owner", op: "Is", val: "Ravi Saini", logicOp: "AND" }])}
+                        className="p-1 text-emerald-600 hover:bg-emerald-50 rounded cursor-pointer"
+                        title="Add Criteria"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                      {cvCriteria.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setCvCriteria(cvCriteria.filter(c => c.id !== crit.id))}
+                          className="p-1 text-rose-600 hover:bg-rose-50 rounded cursor-pointer"
+                          title="Remove Criteria"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Name & Description Inputs matching Screenshots 1 & 2 */}
+            <div className="space-y-4">
+              <div>
+                <label className="block font-bold text-slate-800 mb-1">
+                  Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={cvName}
+                  onChange={(e) => setCvName(e.target.value)}
+                  placeholder="e.g. Design tasks"
+                  className="w-full p-2.5 border border-slate-300 rounded font-bold text-slate-800 focus:border-[#0070BA] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-800 mb-1">Description</label>
+                <textarea
+                  rows={2}
+                  value={cvDescription}
+                  onChange={(e) => setCvDescription(e.target.value)}
+                  className="w-full p-2.5 border border-slate-300 rounded text-slate-800 focus:border-[#0070BA] focus:outline-none"
+                />
+              </div>
+
+              <label className="flex items-center gap-2 font-bold text-slate-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={cvCustomizeColumns}
+                  onChange={(e) => setCvCustomizeColumns(e.target.checked)}
+                  className="rounded text-orange-600 focus:ring-0 cursor-pointer"
+                />
+                <span>Customize Columns to be Displayed</span>
+              </label>
+
+              {/* Column Customizer Dual List matching Screenshot 1 */}
+              {cvCustomizeColumns && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <h5 className="font-bold text-slate-800 text-xs mb-2">Available Columns</h5>
+                    <div className="space-y-1 bg-white p-2 border border-slate-200 rounded max-h-48 overflow-y-auto">
+                      {availableColumns.map((col) => (
+                        <div
+                          key={col}
+                          onClick={() => {
+                            setSelectedColumns([...selectedColumns, col]);
+                            setAvailableColumns(availableColumns.filter(c => c !== col));
+                          }}
+                          className="p-1.5 hover:bg-orange-50 hover:text-orange-600 rounded cursor-pointer flex items-center justify-between font-semibold"
+                        >
+                          <span>{col}</span>
+                          <span className="text-xs text-orange-600 font-bold">+</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h5 className="font-bold text-slate-800 text-xs mb-2">Selected Columns</h5>
+                    <div className="space-y-1 bg-white p-2 border border-slate-200 rounded max-h-48 overflow-y-auto">
+                      {selectedColumns.map((col) => (
+                        <div
+                          key={col}
+                          className="p-1.5 hover:bg-slate-50 rounded flex items-center justify-between font-bold text-slate-800"
+                        >
+                          <span>{col}</span>
+                          <X
+                            onClick={() => {
+                              setSelectedColumns(selectedColumns.filter(c => c !== col));
+                              setAvailableColumns([...availableColumns, col]);
+                            }}
+                            className="h-3.5 w-3.5 text-slate-400 hover:text-rose-600 cursor-pointer"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Share Custom View Section matching Screenshot 2 */}
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+              <h4 className="font-bold text-slate-800 text-xs">Share Custom View</h4>
+              <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={cvShareUsers}
+                  onChange={(e) => setCvShareUsers(e.target.checked)}
+                  className="rounded text-orange-600 focus:ring-0 cursor-pointer"
+                />
+                <span>Share Custom View with other Users</span>
+              </label>
+
+              {cvShareUsers && (
+                <div className="flex items-center gap-6 pl-6 font-semibold text-slate-700">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="shareType"
+                      checked={cvShareType === "ALL"}
+                      onChange={() => setCvShareType("ALL")}
+                      className="text-orange-600 focus:ring-0 cursor-pointer"
+                    />
+                    <span>All Users</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="shareType"
+                      checked={cvShareType === "SPECIFIC"}
+                      onChange={() => setCvShareType("SPECIFIC")}
+                      className="text-orange-600 focus:ring-0 cursor-pointer"
+                    />
+                    <span>Specific Users</span>
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {/* Accessibility Section matching Screenshot 2 */}
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+              <h4 className="font-bold text-slate-800 text-xs">Accessibility</h4>
+              <div className="space-y-2 font-semibold text-slate-700">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={cvShowGlobalOverview}
+                    onChange={(e) => setCvShowGlobalOverview(e.target.checked)}
+                    className="rounded text-orange-600 focus:ring-0 cursor-pointer"
+                  />
+                  <span>Show Custom View in Work Overview &gt; Tasks</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={cvShowOtherProjects}
+                    onChange={(e) => setCvShowOtherProjects(e.target.checked)}
+                    className="rounded text-orange-600 focus:ring-0 cursor-pointer"
+                  />
+                  <span>Show Custom View in other Projects</span>
+                </label>
+
+                {cvShowOtherProjects && (
+                  <div className="flex items-center gap-6 pl-6 pt-1">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="projectsScope"
+                        checked={cvProjectsScope === "ALL"}
+                        onChange={() => setCvProjectsScope("ALL")}
+                        className="text-orange-600 focus:ring-0 cursor-pointer"
+                      />
+                      <span>All Projects</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="projectsScope"
+                        checked={cvProjectsScope === "SPECIFIC"}
+                        onChange={() => setCvProjectsScope("SPECIFIC")}
+                        className="text-orange-600 focus:ring-0 cursor-pointer"
+                      />
+                      <span>Specific Projects</span>
+                    </label>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Bottom Actions matching Screenshots 1 & 2 */}
+            <div className="flex items-center gap-2 pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!cvName.trim()) {
+                    alert("Please enter a Custom View name.");
+                    return;
+                  }
+                  const newCv = {
+                    id: editingCustomViewId || `cv-${Date.now()}`,
+                    name: cvName.trim(),
+                    description: cvDescription,
+                    isDefault: false
+                  };
+                  const updated = [newCv, ...myCustomViews.filter(v => v.id !== newCv.id)];
+                  setMyCustomViews(updated);
+                  try {
+                    localStorage.setItem("my_custom_views", JSON.stringify(updated));
+                  } catch {}
+                  setActiveViewName(newCv.name);
+                  setShowCustomViewModal(false);
+                  alert(`Custom View '${newCv.name}' saved successfully!`);
+                }}
+                className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-md shadow-2xs cursor-pointer text-xs"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCustomViewModal(false)}
+                className="px-4 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-md cursor-pointer text-xs"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD COLUMN DRAWER matching Screenshot 3 */}
+      {showAddColumnDrawer && (
+        <div className="fixed inset-y-0 right-0 z-50 w-80 bg-white shadow-2xl border-l border-slate-200 flex flex-col font-sans text-xs animate-slideInRight">
+          <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-white">
+            <h4 className="font-bold text-slate-900 text-sm">Add Column</h4>
+            <button onClick={() => setShowAddColumnDrawer(false)} className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="p-3 border-b border-slate-100 bg-slate-50/50">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search"
+                value={columnDrawerSearch}
+                onChange={(e) => setColumnDrawerSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded text-xs focus:border-[#0070BA] focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {[
+              "Multi select pick list",
+              "EURO",
+              "Date for Promotion",
+              "Traveller's flight date",
+              "Estimated Start Date",
+              "Estimated End Date",
+              "Event Scheduled On",
+              "Review Date",
+              "Second Review",
+              "Site Visit Date",
+              "Start time of the task",
+              "End time of the task"
+            ]
+              .filter((c) => c.toLowerCase().includes(columnDrawerSearch.toLowerCase()))
+              .map((colName) => (
+                <div key={colName} className="p-3 bg-white border border-slate-200 rounded-lg flex items-center justify-between font-semibold text-slate-800 shadow-2xs hover:border-orange-300">
+                  <span>{colName}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!selectedColumns.includes(colName)) {
+                        setSelectedColumns([...selectedColumns, colName]);
+                      }
+                      alert(`Added column '${colName}' to table!`);
+                    }}
+                    className="text-orange-600 hover:underline font-bold text-xs cursor-pointer"
+                  >
+                    +Add
+                  </button>
+                </div>
+              ))}
+          </div>
+
+          {/* Red Highlighted Bottom Button matching Screenshot 3 */}
+          <div className="p-4 border-t border-slate-200 bg-white">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddColumnDrawer(false);
+                window.location.href = "/settings";
+              }}
+              className="w-full py-2.5 border border-orange-500 text-orange-600 font-bold rounded-md hover:bg-orange-50 cursor-pointer text-xs flex items-center justify-center gap-1.5 shadow-2xs"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Create Custom Field</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
