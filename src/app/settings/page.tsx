@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import ExportTimeLogsModal from "@/components/time-tracking/export-time-logs-modal";
 import {
@@ -29,12 +29,16 @@ import {
   Layers,
   ChevronRight,
   ChevronDown,
-  Plus
+  Plus,
+  List,
+  MinusCircle,
+  Info,
+  Trash2
 } from "lucide-react";
 
 export default function SettingsPage() {
   const [activeCategory, setActiveCategory] = useState<
-    "PERSONAL_SETTINGS" | "PERSONAL_EMAIL" | "ACTIVITY_REMINDER" | "PORTAL_CONFIGURATION" | "PROFILES" | "ROLES" | "SCHEDULE_EXPORT" | "TASK_TEMPLATES"
+    "PERSONAL_SETTINGS" | "PERSONAL_EMAIL" | "ACTIVITY_REMINDER" | "PORTAL_CONFIGURATION" | "PROFILES" | "ROLES" | "SCHEDULE_EXPORT" | "TASK_TEMPLATES" | "AUTOMATION"
   >("PERSONAL_SETTINGS");
 
   const [sidebarSearch, setSidebarSearch] = useState("");
@@ -46,6 +50,91 @@ export default function SettingsPage() {
   const [displayMode, setDisplayMode] = useState<"Day" | "Night" | "Auto">("Auto");
   const [landingPage, setLandingPage] = useState("Home");
   const [userName, setUserName] = useState("Ravi Saini");
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("app_display_mode") as any;
+      if (stored) {
+        setDisplayMode(stored);
+      }
+    } catch {}
+  }, []);
+
+  const handleModeChange = (mode: "Day" | "Night" | "Auto") => {
+    setDisplayMode(mode);
+    try {
+      localStorage.setItem("app_display_mode", mode);
+    } catch {}
+
+    const isDark =
+      mode === "Night" ||
+      (mode === "Auto" &&
+        typeof window !== "undefined" &&
+        window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+
+    window.dispatchEvent(new Event("theme_changed"));
+  };
+
+  // Workflow Rules State matching Screenshot 1-5
+  const [workflowRules, setWorkflowRules] = useState(() => {
+    try {
+      const stored = localStorage.getItem("workflow_rules");
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return [
+      { id: "r1", code: "NO", color: "bg-[#7FD8D8] text-white", name: "Notify Owner on Task Assignment / Status Change", layout: "All Layouts", executeOn: "Comment, Update (Status, O...", nextRule: true, active: true },
+      { id: "r2", code: "NF", color: "bg-lime-500 text-white", name: "Notify Follower on Task Assignment / Status Change", layout: "All Layouts", executeOn: "Update (Start Date, Owner)", nextRule: false, active: false },
+      { id: "r3", code: "RT", color: "bg-amber-500 text-white", name: "Remind Task Owners on the Due Date", layout: "All Layouts", executeOn: "Creation, Update (Start Date, ...", nextRule: false, active: false },
+      { id: "r4", code: "AT", color: "bg-[#F4B4C4] text-white", name: "Assign Task to Project Owner by Default", layout: "All Layouts", executeOn: "Creation", nextRule: false, active: false },
+      { id: "r5", code: "QD", color: "bg-purple-400 text-white", name: "Qatar Demo Kit Flow", layout: "All Layouts", executeOn: "Comment, Update (Work Hours)", nextRule: true, active: true },
+      { id: "r6", code: "01", color: "bg-[#7FD8D8] text-white", name: "01-Rule-Qatar_Kit", layout: "Standard Layout", executeOn: "Comment, Update (Completio...", nextRule: true, active: true },
+    ];
+  });
+
+  const [showRuleModal, setShowRuleModal] = useState(false);
+  const [ruleName, setRuleName] = useState("Untitled Rule");
+  const [ruleExecMode, setRuleExecMode] = useState<"USER" | "DATE">("USER");
+  const [ruleTriggers, setRuleTriggers] = useState<any[]>([
+    { id: "t1", action: "is Created", fields: [] },
+  ]);
+  const [activeTriggerDropdownId, setActiveTriggerDropdownId] = useState<string | null>(null);
+  const [activeFieldDropdownId, setActiveFieldDropdownId] = useState<string | null>(null);
+  const [executeNextRuleCheck, setExecuteNextRuleCheck] = useState(false);
+
+  // Criteria State for Rule Builder matching Screenshots 1-5
+  const [ruleCriteria, setRuleCriteria] = useState<any[]>([
+    {
+      id: "c1",
+      field: "Project Name",
+      operator: "Is",
+      value: "DT-21 01 PoC Projects",
+    },
+  ]);
+  const [activeCriteriaFieldDropdownId, setActiveCriteriaFieldDropdownId] = useState<string | null>(null);
+  const [activeCriteriaOpDropdownId, setActiveCriteriaOpDropdownId] = useState<string | null>(null);
+  const [activeCriteriaValueDropdownId, setActiveCriteriaValueDropdownId] = useState<string | null>(null);
+  const [criteriaFieldSearch, setCriteriaFieldSearch] = useState("");
+  const [criteriaOpSearch, setCriteriaOpSearch] = useState("");
+
+  // Rule Actions State matching Screenshot
+  const [ruleActions, setRuleActions] = useState<any[]>([
+    { id: "a1", type: "Associate Email Alert", name: "Notify Owner Email Alert" },
+  ]);
+  const [showActionDropdown, setShowActionDropdown] = useState(false);
+
+  const saveWorkflowRulesToStorage = (updated: any[]) => {
+    setWorkflowRules(updated);
+    try {
+      localStorage.setItem("workflow_rules", JSON.stringify(updated));
+    } catch {}
+  };
 
   // Screenshot 3: Schedule Export State
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -572,7 +661,7 @@ export default function SettingsPage() {
                       return (
                         <button
                           key={m.id}
-                          onClick={() => setDisplayMode(m.id as any)}
+                          onClick={() => handleModeChange(m.id as any)}
                           className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border w-24 cursor-pointer transition-all ${
                             isSelected ? "border-[#0070BA] bg-blue-50/70 text-[#0070BA] font-bold shadow-2xs" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                           }`}
@@ -780,12 +869,9 @@ export default function SettingsPage() {
           {activeCategory === "ROLES" && (
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs space-y-6 text-xs font-sans">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">Roles Hierarchy</h3>
-                  <p className="text-xs text-slate-500">Define user roles and organizational hierarchy permissions</p>
-                </div>
+                <h3 className="text-base font-bold text-slate-900">Roles &amp; Hierarchy</h3>
                 <button
-                  onClick={() => alert("Creating new custom role...")}
+                  onClick={() => alert("Add Role Modal")}
                   className="rounded-md bg-[#0070BA] px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 cursor-pointer shadow-xs"
                 >
                   + Add Role
@@ -806,6 +892,105 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* AUTOMATION (WORKFLOW RULES) matching Screenshots 1-5 */}
+          {activeCategory === "AUTOMATION" && (
+            <div className="space-y-4 font-sans text-xs">
+              {/* Header matching Screenshot 1 */}
+              <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                <h2 className="text-lg font-bold text-slate-900">Workflow Rules</h2>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      setRuleName("Untitled Rule");
+                      setRuleExecMode("USER");
+                      setRuleTriggers([{ id: "t1", action: "is Created", fields: [] }]);
+                      setExecuteNextRuleCheck(false);
+                      setShowRuleModal(true);
+                    }}
+                    className="rounded-md bg-[#0070BA] hover:bg-blue-700 px-4 py-2 text-xs font-bold text-white shadow-xs cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>New Workflow Rule</span>
+                  </button>
+                  <div className="flex items-center gap-1 text-slate-400 pl-2 border-l border-slate-200">
+                    <button className="p-1 hover:text-slate-700 rounded"><List className="h-4 w-4" /></button>
+                    <button className="p-1 hover:text-slate-700 rounded"><CrossIcon className="h-4 w-4" /></button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Workflow Rules Table matching Screenshot 1 */}
+              <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs">
+                <table className="w-full text-xs text-left border-collapse font-sans">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold uppercase text-[11px]">
+                      <th className="py-3 px-4">Name</th>
+                      <th className="py-3 px-4">Execute On</th>
+                      <th className="py-3 px-4 text-center">Execute Next Rule</th>
+                      <th className="py-3 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <span>Status</span>
+                          <Info className="h-3.5 w-3.5 text-slate-400" />
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {workflowRules.map((rule: any) => (
+                      <tr key={rule.id} className="hover:bg-slate-50">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`h-8 w-8 rounded-lg ${rule.color} font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-2xs`}>
+                              {rule.code}
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-slate-900 text-xs">{rule.name}</h4>
+                              <span className="text-[11px] text-slate-400 font-medium">{rule.layout}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-slate-700 font-medium">{rule.executeOn}</td>
+                        <td className="py-3 px-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={rule.nextRule}
+                            onChange={(e) => {
+                              const updated = workflowRules.map((r: any) =>
+                                r.id === rule.id ? { ...r, nextRule: e.target.checked } : r
+                              );
+                              saveWorkflowRulesToStorage(updated);
+                            }}
+                            className="rounded text-[#0070BA] focus:ring-0 cursor-pointer h-4 w-4"
+                          />
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = workflowRules.map((r: any) =>
+                                r.id === rule.id ? { ...r, active: !r.active } : r
+                              );
+                              saveWorkflowRulesToStorage(updated);
+                            }}
+                            className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                              rule.active ? "bg-[#0070BA]" : "bg-slate-300"
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                                rule.active ? "translate-x-4" : "translate-x-0"
+                              }`}
+                            />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -976,6 +1161,551 @@ export default function SettingsPage() {
 
         </div>
       </div>
+
+      {/* Workflow Rule Canvas Builder Modal matching Screenshots 2-5 */}
+      {showRuleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 font-sans animate-fadeIn">
+          <div className="w-full max-w-4xl bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]">
+            {/* Modal Top Header Bar matching Screenshot 2 */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-[#7FD8D8] text-white font-bold text-sm flex items-center justify-center shadow-xs">
+                  {ruleName ? ruleName.slice(0, 2).toUpperCase() : "UR"}
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    value={ruleName}
+                    onChange={(e) => setRuleName(e.target.value)}
+                    className="font-bold text-base text-slate-900 border-b border-transparent hover:border-slate-300 focus:border-[#0070BA] focus:outline-none px-1"
+                  />
+                  <button className="text-xs text-blue-600 font-semibold block px-1 hover:underline">
+                    Description &gt;
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 text-xs font-semibold text-slate-500">
+                <span>Layout : <strong className="text-slate-800">Standard Layout</strong></span>
+                <button onClick={() => setShowRuleModal(false)} className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer">
+                  <CrossIcon className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body Canvas with Flow Nodes matching Screenshot 2-5 */}
+            <div className="flex-1 overflow-y-auto p-8 bg-slate-50/50 space-y-6">
+              <div className="flex gap-8">
+                {/* Left Diagram Connection Nodes matching Screenshot 2 */}
+                <div className="flex flex-col items-center pt-2">
+                  <div className="h-16 w-16 rounded-full border-2 border-blue-500 text-blue-600 font-bold text-xs flex items-center justify-center bg-white shadow-xs">
+                    WHEN
+                  </div>
+                  <div className="h-28 w-0 border-l-2 border-dashed border-blue-400 my-1" />
+                  <div className="h-16 w-16 rotate-45 border-2 border-blue-500 bg-white shadow-xs flex items-center justify-center">
+                    <span className="-rotate-45 font-bold text-[9px] text-blue-600 tracking-tighter">CONDITION 1</span>
+                  </div>
+                </div>
+
+                {/* Right Flow Action Cards matching Screenshot 2-5 */}
+                <div className="flex-1 space-y-6">
+                  {/* Card 1: WHEN Block */}
+                  <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
+                    <div>
+                      <h4 className="font-bold text-slate-700 text-xs mb-2">This rule will be executed</h4>
+                      <div className="flex items-center gap-6 text-xs font-semibold text-slate-700">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="execMode"
+                            checked={ruleExecMode === "USER"}
+                            onChange={() => setRuleExecMode("USER")}
+                            className="text-[#0070BA] focus:ring-0 cursor-pointer"
+                          />
+                          <span>Based on User action</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="execMode"
+                            checked={ruleExecMode === "DATE"}
+                            onChange={() => setRuleExecMode("DATE")}
+                            className="text-[#0070BA] focus:ring-0 cursor-pointer"
+                          />
+                          <span>Based on Date &amp; Time</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Trigger Rows List matching Screenshot 4 */}
+                    <div className="space-y-3 pt-2">
+                      {ruleTriggers.map((trig) => (
+                        <div key={trig.id} className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                          {ruleTriggers.length > 1 && (
+                            <button
+                              onClick={() => setRuleTriggers(ruleTriggers.filter((t) => t.id !== trig.id))}
+                              className="text-rose-500 hover:text-rose-700 p-0.5 cursor-pointer"
+                            >
+                              <MinusCircle className="h-4 w-4" />
+                            </button>
+                          )}
+                          <span>When a Task</span>
+
+                          {/* Action Dropdown matching Screenshot 3 */}
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setActiveTriggerDropdownId(activeTriggerDropdownId === trig.id ? null : trig.id)}
+                              className="inline-flex items-center gap-1 text-blue-600 font-bold hover:underline cursor-pointer"
+                            >
+                              <span>{trig.action}</span>
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            </button>
+
+                            {activeTriggerDropdownId === trig.id && (
+                              <div className="absolute left-0 mt-1 z-30 w-48 bg-white rounded-lg border border-slate-200 shadow-xl py-1 text-slate-800 font-semibold animate-fadeIn">
+                                {["is Created", "is Updated", "is Commented on", "is Trashed", "Document is attached"].map((act) => (
+                                  <button
+                                    key={act}
+                                    type="button"
+                                    onClick={() => {
+                                      setRuleTriggers(
+                                        ruleTriggers.map((t) => (t.id === trig.id ? { ...t, action: act } : t))
+                                      );
+                                      setActiveTriggerDropdownId(null);
+                                    }}
+                                    className="w-full text-left px-3 py-1.5 hover:bg-slate-100 cursor-pointer text-xs"
+                                  >
+                                    {act}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Field Selection Dropdown matching Screenshot 5 */}
+                          {trig.action === "is Updated" && (
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setActiveFieldDropdownId(activeFieldDropdownId === trig.id ? null : trig.id)}
+                                className="inline-flex items-center gap-1 text-blue-600 font-bold hover:underline cursor-pointer"
+                              >
+                                <span>({trig.fields.length > 0 ? trig.fields.join(", ") : "any fields"})</span>
+                              </button>
+
+                              {activeFieldDropdownId === trig.id && (
+                                <div className="absolute left-0 mt-1 z-30 w-60 bg-white rounded-lg border border-slate-200 shadow-2xl p-2 text-slate-800 animate-fadeIn space-y-0.5 max-h-64 overflow-y-auto">
+                                  {[
+                                    "Owner",
+                                    "Status",
+                                    "Start Date",
+                                    "Due Date",
+                                    "Duration",
+                                    "Priority",
+                                    "Completion Percentage",
+                                    "Tags",
+                                    "Work Hours",
+                                    "Completion Date",
+                                    "Billing Type",
+                                    "Associated Team",
+                                    "Task Name",
+                                    "Task Description",
+                                    "Clear Dates",
+                                  ].map((field) => {
+                                    const isChecked = trig.fields.includes(field);
+                                    return (
+                                      <label key={field} className="flex items-center gap-2 px-2 py-1.5 hover:bg-blue-50/60 rounded cursor-pointer text-xs font-medium text-slate-700">
+                                        <input
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          onChange={(e) => {
+                                            const nextFields = e.target.checked
+                                              ? [...trig.fields, field]
+                                              : trig.fields.filter((f: string) => f !== field);
+                                            setRuleTriggers(
+                                              ruleTriggers.map((t) => (t.id === trig.id ? { ...t, fields: nextFields } : t))
+                                            );
+                                          }}
+                                          className="rounded text-[#0070BA] focus:ring-0 cursor-pointer h-3.5 w-3.5"
+                                        />
+                                        <span>{field}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setRuleTriggers([
+                            ...ruleTriggers,
+                            { id: `t${Date.now()}`, action: "is Updated", fields: ["Status"] },
+                          ])
+                        }
+                        className="text-blue-600 font-bold text-xs hover:underline flex items-center gap-1 cursor-pointer pt-1"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>Add Row</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Card 2: CONDITION 1 - Criteria Block matching Screenshots 1-5 */}
+                  <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4 font-sans text-xs">
+                    <h4 className="font-bold text-slate-900 text-sm">Condition 1 - Criteria</h4>
+
+                    {/* Criteria Rows List */}
+                    <div className="space-y-3">
+                      {ruleCriteria.length === 0 ? (
+                        <p className="text-slate-500 text-xs">
+                          Add criteria to determine if it will trigger this condition.{" "}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setRuleCriteria([
+                                { id: `c-${Date.now()}`, field: "Project Name", operator: "Is", value: "DT-21 01 PoC Projects" },
+                              ])
+                            }
+                            className="text-blue-600 font-bold hover:underline cursor-pointer"
+                          >
+                            Add Criteria +
+                          </button>
+                        </p>
+                      ) : (
+                        ruleCriteria.map((crit) => (
+                          <div key={crit.id} className="flex items-center gap-3 bg-[#F3F8FC] p-3 rounded-lg border border-blue-100 shadow-2xs">
+                            {/* Field 1: Project Name / Field Picker Dropdown (Screenshot 1 & 2) */}
+                            <div className="relative w-52">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCriteriaFieldSearch("");
+                                  setActiveCriteriaFieldDropdownId(activeCriteriaFieldDropdownId === crit.id ? null : crit.id);
+                                  setActiveCriteriaOpDropdownId(null);
+                                  setActiveCriteriaValueDropdownId(null);
+                                }}
+                                className="w-full flex items-center justify-between bg-white border border-slate-300 rounded-md px-3 py-1.5 text-xs font-bold text-slate-800 focus:border-blue-500 hover:bg-slate-50 cursor-pointer shadow-2xs"
+                              >
+                                <span className="truncate">{crit.field || "Select Field"}</span>
+                                <ChevronDown className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
+                              </button>
+
+                              {activeCriteriaFieldDropdownId === crit.id && (
+                                <div className="absolute left-0 mt-1 z-40 w-60 bg-white rounded-lg border border-slate-200 shadow-2xl p-2 animate-fadeIn space-y-2">
+                                  <div className="relative">
+                                    <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-2" />
+                                    <input
+                                      type="text"
+                                      placeholder="Search fields..."
+                                      value={criteriaFieldSearch}
+                                      onChange={(e) => setCriteriaFieldSearch(e.target.value)}
+                                      className="w-full text-xs pl-8 pr-2 py-1 border border-slate-300 rounded focus:border-blue-500 focus:outline-none"
+                                      autoFocus
+                                    />
+                                  </div>
+
+                                  <div className="max-h-52 overflow-y-auto space-y-0.5 font-medium text-slate-700">
+                                    {[
+                                      "Project",
+                                      "Project Name",
+                                      "Project Owner",
+                                      "Project Start Date",
+                                      "Project End Date",
+                                      "Strict Project",
+                                      "Project Group",
+                                      "Project Status",
+                                      "Project Roll-up",
+                                      "Project Created Date",
+                                      "Task Status",
+                                      "Task Priority",
+                                      "Task Owner",
+                                    ]
+                                      .filter((f) => f.toLowerCase().includes(criteriaFieldSearch.toLowerCase()))
+                                      .map((f) => (
+                                        <button
+                                          key={f}
+                                          type="button"
+                                          onClick={() => {
+                                            setRuleCriteria(
+                                              ruleCriteria.map((c) => (c.id === crit.id ? { ...c, field: f } : c))
+                                            );
+                                            setActiveCriteriaFieldDropdownId(null);
+                                          }}
+                                          className={`w-full text-left px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-blue-600 cursor-pointer text-xs font-medium block ${
+                                            crit.field === f ? "bg-blue-50 text-blue-600 font-bold" : ""
+                                          }`}
+                                        >
+                                          {f}
+                                        </button>
+                                      ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Field 2: Operator Picker Dropdown (Screenshot 3 & 4) */}
+                            <div className="relative w-36">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCriteriaOpSearch("");
+                                  setActiveCriteriaOpDropdownId(activeCriteriaOpDropdownId === crit.id ? null : crit.id);
+                                  setActiveCriteriaFieldDropdownId(null);
+                                  setActiveCriteriaValueDropdownId(null);
+                                }}
+                                className="w-full flex items-center justify-between bg-white border border-slate-300 rounded-md px-3 py-1.5 text-xs font-bold text-slate-800 focus:border-blue-500 hover:bg-slate-50 cursor-pointer shadow-2xs"
+                              >
+                                <span>{crit.operator || "Is"}</span>
+                                <ChevronDown className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                              </button>
+
+                              {activeCriteriaOpDropdownId === crit.id && (
+                                <div className="absolute left-0 mt-1 z-40 w-44 bg-white rounded-lg border border-slate-200 shadow-2xl p-2 animate-fadeIn space-y-2">
+                                  <div className="relative">
+                                    <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2 top-2" />
+                                    <input
+                                      type="text"
+                                      placeholder="Search..."
+                                      value={criteriaOpSearch}
+                                      onChange={(e) => setCriteriaOpSearch(e.target.value)}
+                                      className="w-full text-xs pl-7 pr-2 py-1 border border-slate-300 rounded focus:border-blue-500 focus:outline-none"
+                                      autoFocus
+                                    />
+                                  </div>
+
+                                  <div className="max-h-48 overflow-y-auto space-y-0.5 font-medium text-slate-700">
+                                    {["Is", "Is Not", "Contains", "Doesn't Contains", "Starts With", "Ends With"]
+                                      .filter((op) => op.toLowerCase().includes(criteriaOpSearch.toLowerCase()))
+                                      .map((op) => (
+                                        <button
+                                          key={op}
+                                          type="button"
+                                          onClick={() => {
+                                            setRuleCriteria(
+                                              ruleCriteria.map((c) => (c.id === crit.id ? { ...c, operator: op } : c))
+                                            );
+                                            setActiveCriteriaOpDropdownId(null);
+                                          }}
+                                          className={`w-full text-left px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-blue-600 cursor-pointer text-xs font-medium block ${
+                                            crit.operator === op ? "bg-blue-50 text-blue-600 font-bold" : ""
+                                          }`}
+                                        >
+                                          {op}
+                                        </button>
+                                      ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Field 3: Value Picker Dropdown (Screenshot 5) */}
+                            <div className="relative flex-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveCriteriaValueDropdownId(activeCriteriaValueDropdownId === crit.id ? null : crit.id);
+                                  setActiveCriteriaFieldDropdownId(null);
+                                  setActiveCriteriaOpDropdownId(null);
+                                }}
+                                className="w-full flex items-center justify-between bg-white border border-slate-300 rounded-md px-3 py-1.5 text-xs font-medium text-slate-800 focus:border-blue-500 hover:bg-slate-50 cursor-pointer shadow-2xs"
+                              >
+                                <span className="truncate">{crit.value || "Select"}</span>
+                              </button>
+
+                              {activeCriteriaValueDropdownId === crit.id && (
+                                <div className="absolute left-0 mt-1 z-40 w-full bg-white rounded-lg border border-slate-200 shadow-2xl p-2 animate-fadeIn max-h-48 overflow-y-auto space-y-0.5 font-medium text-slate-700">
+                                  {[
+                                    "DT-21 01 PoC Projects",
+                                    "DT-31 07 Command Center Automation",
+                                    "DT-30 06 Monthly Miscellaneous Tasks",
+                                  ].map((val) => (
+                                    <button
+                                      key={val}
+                                      type="button"
+                                      onClick={() => {
+                                        setRuleCriteria(
+                                          ruleCriteria.map((c) => (c.id === crit.id ? { ...c, value: val } : c))
+                                        );
+                                        setActiveCriteriaValueDropdownId(null);
+                                      }}
+                                      className={`w-full text-left px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-blue-600 cursor-pointer text-xs font-medium block ${
+                                        crit.value === val ? "bg-blue-50 text-blue-600 font-bold" : ""
+                                      }`}
+                                    >
+                                      {val}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Far Right Action Icons matching Screenshot 1-5 */}
+                            <div className="flex items-center gap-1.5 flex-shrink-0 text-emerald-600">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setRuleCriteria([
+                                    ...ruleCriteria,
+                                    { id: `c-${Date.now()}`, field: "Project Name", operator: "Is", value: "DT-31 07 Command Center Automation" },
+                                  ])
+                                }
+                                className="p-1 rounded hover:bg-emerald-50 text-emerald-600 cursor-pointer"
+                                title="Add Criteria Row"
+                              >
+                                <Plus className="h-4 w-4 border border-emerald-600 rounded-full p-0.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setRuleCriteria(ruleCriteria.filter((c) => c.id !== crit.id))
+                                }
+                                className="p-1 rounded hover:bg-rose-50 text-rose-500 cursor-pointer"
+                                title="Remove Criteria Row"
+                              >
+                                <MinusCircle className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Associated Actions List */}
+                    {ruleActions.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-slate-100">
+                        <h5 className="font-bold text-slate-700 text-xs">Associated Actions ({ruleActions.length})</h5>
+                        <div className="space-y-1.5">
+                          {ruleActions.map((act) => (
+                            <div key={act.id} className="flex items-center justify-between p-2.5 bg-blue-50/60 rounded-md border border-blue-100 text-xs">
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-0.5 rounded bg-[#0070BA] text-white font-bold text-[10px] uppercase shadow-2xs">
+                                  {act.type.split(" ")[0]}
+                                </span>
+                                <span className="font-bold text-slate-800">{act.name}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setRuleActions(ruleActions.filter((a) => a.id !== act.id))}
+                                className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                      {/* Interactive + Add Action Popover matching Screenshot */}
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setShowActionDropdown(!showActionDropdown)}
+                          className="text-blue-600 font-bold text-xs hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          <span>Add Action</span>
+                        </button>
+
+                        {showActionDropdown && (
+                          <div className="absolute left-0 mt-1.5 z-40 w-64 bg-white rounded-lg border border-slate-200 shadow-2xl py-1.5 text-slate-800 font-semibold animate-fadeIn">
+                            {[
+                              "Update Field",
+                              "Associate Webhook",
+                              "Associate Custom Function",
+                              "Associate Email Alert",
+                              "Associate WhatsApp Notification",
+                            ].map((actionType) => (
+                              <button
+                                key={actionType}
+                                type="button"
+                                onClick={() => {
+                                  setRuleActions([
+                                    ...ruleActions,
+                                    { id: `act-${Date.now()}`, type: actionType, name: `${actionType} Handler` },
+                                  ]);
+                                  setShowActionDropdown(false);
+                                }}
+                                className="w-full text-left px-4 py-2 hover:bg-slate-100 cursor-pointer text-xs font-semibold block text-slate-700 hover:text-blue-600 transition-colors"
+                              >
+                                {actionType}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setRuleCriteria([
+                            ...ruleCriteria,
+                            { id: `c-${Date.now()}`, field: "Project Name", operator: "Is", value: "DT-31 07 Command Center Automation" },
+                          ])
+                        }
+                        className="text-blue-600 font-bold text-xs hover:underline cursor-pointer"
+                      >
+                        + Add Criteria
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Bottom Action Footer matching Screenshot 2 */}
+            <div className="px-6 py-4 border-t border-slate-200 bg-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newRuleObj = {
+                      id: `r${Date.now()}`,
+                      code: ruleName.slice(0, 2).toUpperCase() || "UR",
+                      color: "bg-blue-500 text-white",
+                      name: ruleName.trim() || "Untitled Rule",
+                      layout: "Standard Layout",
+                      executeOn: ruleTriggers.map((t) => `${t.action}`).join(", "),
+                      nextRule: executeNextRuleCheck,
+                      active: true,
+                    };
+                    saveWorkflowRulesToStorage([newRuleObj, ...workflowRules]);
+                    setShowRuleModal(false);
+                    alert(`Workflow Rule '${newRuleObj.name}' saved successfully!`);
+                  }}
+                  className="px-4 py-2 bg-[#0070BA] hover:bg-blue-700 text-white font-bold text-xs rounded-md shadow-xs cursor-pointer"
+                >
+                  Save Rule
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRuleModal(false)}
+                  className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-md cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={executeNextRuleCheck}
+                  onChange={(e) => setExecuteNextRuleCheck(e.target.checked)}
+                  className="rounded text-[#0070BA] focus:ring-0 cursor-pointer"
+                />
+                <span>Execute the next workflow rule</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -30,6 +30,9 @@ import {
   Copy,
   CheckCircle2,
   X,
+  Sun,
+  Moon,
+  Monitor,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import NotificationDrawer from "@/components/notifications/notification-drawer";
@@ -65,6 +68,51 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const [overviewExpanded, setOverviewExpanded] = useState(true);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileCardOpen, setProfileCardOpen] = useState(false);
+  const [displayMode, setDisplayMode] = useState<"Day" | "Night" | "Auto">("Auto");
+
+  const isSettingsPage = pathname === "/settings";
+
+  const applyThemeMode = (mode: "Day" | "Night" | "Auto") => {
+    setDisplayMode(mode);
+    try {
+      localStorage.setItem("app_display_mode", mode);
+    } catch {}
+
+    const isDark =
+      mode === "Night" ||
+      (mode === "Auto" &&
+        typeof window !== "undefined" &&
+        window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  };
+
+  // Load persistent theme mode preference
+  useEffect(() => {
+    try {
+      const storedMode = (localStorage.getItem("app_display_mode") as any) || "Auto";
+      applyThemeMode(storedMode);
+    } catch {}
+
+    const handleStorageChange = () => {
+      try {
+        const mode = (localStorage.getItem("app_display_mode") as any) || "Auto";
+        applyThemeMode(mode);
+      } catch {}
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("theme_changed", handleStorageChange);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("theme_changed", handleStorageChange);
+    };
+  }, []);
 
   // Load persistent sidebar collapse preference
   useEffect(() => {
@@ -172,7 +220,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </nav>
 
           {/* Overview Section */}
-          {!collapsed && (
+          {!collapsed && !isSettingsPage && (
             <div className="pt-2 border-t border-slate-800/60">
               <div
                 onClick={() => setOverviewExpanded(!overviewExpanded)}
@@ -215,7 +263,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           )}
 
           {/* Recent Projects Section */}
-          {!collapsed && (
+          {!collapsed && !isSettingsPage && (
             <div className="pt-2 border-t border-slate-800/60">
               <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
                 <span>Recent Projects</span>
@@ -360,6 +408,37 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                           </button>
                         </div>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Theme Mode Switcher in Profile Card */}
+                  <div className="py-2.5 border-t border-slate-200/60">
+                    <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Display Mode</span>
+                    <div className="flex items-center gap-2">
+                      {[
+                        { id: "Day", label: "Day", icon: Sun },
+                        { id: "Night", label: "Night", icon: Moon },
+                        { id: "Auto", label: "Auto", icon: Monitor },
+                      ].map((m) => {
+                        const Icon = m.icon;
+                        const isSelected = displayMode === m.id;
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => applyThemeMode(m.id as any)}
+                            className={cn(
+                              "flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md border text-xs font-bold transition-all cursor-pointer",
+                              isSelected
+                                ? "border-[#0070BA] bg-blue-50 text-[#0070BA] shadow-2xs"
+                                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                            )}
+                          >
+                            <Icon className="h-3.5 w-3.5" />
+                            <span>{m.label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 

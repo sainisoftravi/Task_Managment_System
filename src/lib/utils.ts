@@ -71,6 +71,25 @@ export function generateProjectKey(name: string): string {
   return `${initials}-${num}`;
 }
 
+export function getNextSequentialProjectKey(projects: Array<{ key?: string }>, prefix = "DT"): string {
+  let maxNum = 0;
+
+  projects.forEach((p) => {
+    if (!p || !p.key) return;
+    const match = p.key.match(/[-_]?(\d+)$/);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (!isNaN(num) && num > maxNum) {
+        maxNum = num;
+      }
+    }
+  });
+
+  const nextNum = maxNum > 0 ? maxNum + 1 : 1;
+  const numStr = nextNum < 10 ? `0${nextNum}` : `${nextNum}`;
+  return `${prefix}-${numStr}`;
+}
+
 export function colorForPriority(priority: string): string {
   const map: Record<string, string> = {
     LOW: "bg-blue-100 text-blue-800",

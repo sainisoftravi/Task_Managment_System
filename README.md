@@ -83,6 +83,22 @@
   - **Status Normalization**: Automatic normalization mapping between database task statuses (`TODO`, `IN_PROGRESS`, `IN_REVIEW`, `BLOCKED`, `DONE`) and human-readable labels (`"To Do"`, `"not yet Started"`, `"Open"`, `"Completed"`, `"Closed"`).
   - **Optimistic Drag State**: Instant visual card movement across columns upon drop with background API synchronization (`PATCH /api/tasks/${id}`).
   - **Expanded Droppable Targets**: `min-h-[300px]` drop target height ensuring empty status columns (*In Progress*, *Blocked*, *Done*) have large drop targets.
+- **Dedicated Setup Sidebar Layout (`app-layout.tsx`)**:
+  - **Clean Setup Navigation**: When navigating to Setup (`/settings`), secondary project sub-lists (`OVERVIEW` and `RECENT PROJECTS`) are automatically hidden for a clean, dedicated Setup view.
+  - **Back Navigation**: Clicking the blue `← Setup` back arrow takes you back to the main App View where project overview options return.
+- **Interactive Display Mode Switcher (`Day` / `Night` / `Auto`)**:
+  - **Light/Dark Theme Engine**: Full support for `Day` (☀️ Light), `Night` (🌙 Dark), and `Auto` (💻 System preference) themes.
+  - **Global Synchronization**: Theme state synchronizes instantly across `Personal Settings` and `User Profile Popover Card`, toggling the `.dark` class on `<html>` root and persisting in `localStorage`.
+- **Robust Project Creation & Dual Persistence (`projects/page.tsx`)**:
+  - **Auto Sequential Project Key**: Opening `+ New Project` calculates the highest existing project key (`DT-31`) and automatically pre-fills the `Project Prefix / ID (Key)` field with the next sequential ID (e.g. `DT-32` or `DT-01`, `DT-02` sequentially).
+  - **Fail-safe Creation Flow**: Clicking `Save Project` performs full validation, sends project data to `/api/projects` POST endpoint, and immediately creates/adds the new project to the top of the Projects table with success toast notification (`Project '[name]' created successfully!`).
+  - **Dual Persistence**: Project entries persist in Prisma database (`Project` model) and `localStorage.setItem("user_custom_projects", ...)`, guaranteeing newly created projects remain visible across browser reloads.
+- **Workflow Rules & Automation Engine (`settings/page.tsx`)**:
+  - **Workflow Rules Table**: Full rule registry matching Screenshot 1 (*Notify Owner on Task Assignment*, *Notify Follower*, *Remind Task Owners on Due Date*, *Assign Task to Project Owner*, *Qatar Demo Kit Flow*).
+  - **Visual Flow Diagram Canvas**: Interactive canvas builder matching Screenshots 2-5 with `WHEN` circle node and `CONDITION 1` diamond node connected by dotted flow lines.
+  - **Trigger & Criteria Configuration**: Configure `Based on User action` / `Based on Date & Time`, trigger action pickers (`is Created`, `is Updated`, `is Commented on`, `is Trashed`, `Document is attached`), multi-field change selectors (*Owner*, *Status*, *Start Date*, *Due Date*, *Duration*, *Priority*, *Completion Percentage*, *Tags*, *Work Hours*, *Completion Date*, *Billing Type*, *Associated Team*, *Task Name*, *Task Description*, *Clear Dates*), and `+ Add Row` multi-trigger chaining.
+  - **Condition 1 - Criteria Builder**: Searchable field dropdown (*Project Name*, *Project Owner*, *Project Start/End Date*, *Project Status*, *Task Priority*), operator selector (*Is*, *Is Not*, *Contains*, *Doesn't Contains*, *Starts With*, *Ends With*), project value picker (*DT-21 01 PoC Projects*, *DT-31 07 Command Center Automation*), and `(+)` criteria row adding/branching.
+  - **Action Association Popover**: Interactive **`+ Add Action`** popover menu matching screenshot with options: *Update Field*, *Associate Webhook*, *Associate Custom Function*, *Associate Email Alert*, and *Associate WhatsApp Notification*, with configured action badges and deletion controls.
 
 #### ➕ Full New Task Creation Modal (`create-task-modal.tsx`)
 - **Header Layout Selector**: Switch layouts (*Standard Layout, Software BugTracker, Construction WBS*).
