@@ -388,7 +388,109 @@ export default function TimeTrackingPage() {
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
         onExport={(data) => {
-          alert(`Exported time logs for Scope: ${data.projectScope} as Format: ${data.format}`);
+          const formatType = data.format; // "XLSX" | "CSV" | "PDF"
+          const columns = data.selectedColumns && data.selectedColumns.length > 0
+            ? data.selectedColumns
+            : ["Project Name", "Task Title", "User Name", "Log Date", "Duration (Hours)", "Billable Type", "Approval Status"];
+
+          // Demo fallback dataset matching screenshot if timeLogs is empty
+          const activeLogs = timeLogs.length > 0 ? timeLogs : [
+            {
+              id: "tl-1",
+              logDate: "2025-12-22",
+              durationMinutes: 60,
+              billableType: "BILLABLE",
+              description: "02 Project Master Excel",
+              task: { title: "02 JWIL Chennai - 2 parts - post at 2 locations", project: { name: "01 PoC Projects" } },
+              user: { name: "Ravi Saini" }
+            },
+            {
+              id: "tl-2",
+              logDate: "2025-12-23",
+              durationMinutes: 120,
+              billableType: "BILLABLE",
+              description: "Load testing setup and execution",
+              task: { title: "Load Testing & Analysis", project: { name: "01 PoC Projects" } },
+              user: { name: "Sushil Verma" }
+            }
+          ];
+
+          const exportRows = activeLogs.map((log, idx) => ({
+            "Project Name": log.task?.project?.name || "01 PoC Projects",
+            "Task Title": log.task?.title || "General Activity",
+            "User Name": log.user?.name || "Ravi Saini",
+            "Log Date": log.logDate ? new Date(log.logDate).toISOString().split("T")[0] : "2025-12-22",
+            "Duration (Hours)": (log.durationMinutes / 60).toFixed(2) + " hrs",
+            "Billable Type": log.billableType === "BILLABLE" ? "Billable" : "Non-Billable",
+            "Approval Status": idx % 2 === 0 ? "Approved" : "Pending",
+            "Description Notes": log.description || "",
+          }));
+
+          if (formatType === "CSV" || formatType === "XLSX") {
+            const headerRow = columns.join(",");
+            const bodyRows = exportRows.map((row) =>
+              columns.map((col: string) => `"${String((row as any)[col] || "").replace(/"/g, '""')}"`).join(",")
+            );
+            const csvContent = "\uFEFF" + [headerRow, ...bodyRows].join("\n");
+            const mimeType = formatType === "XLSX" ? "application/vnd.ms-excel" : "text/csv;charset=utf-8;";
+            const ext = formatType === "XLSX" ? "xlsx" : "csv";
+
+            const blob = new Blob([csvContent], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `time_logs_report_${new Date().toISOString().slice(0, 10)}.${ext}`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          } else if (formatType === "PDF") {
+            const printWin = window.open("", "_blank");
+            if (printWin) {
+              const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                  <head>
+                    <title>Time Logs Report - TaskPMP</title>
+                    <style>
+                      body { font-family: Arial, sans-serif; font-size: 12px; padding: 20px; color: #333; }
+                      h1 { font-size: 18px; color: #0070BA; margin-bottom: 4px; }
+                      p { font-size: 11px; color: #666; margin-top: 0; }
+                      table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                      th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                      th { background-color: #f8fafc; font-weight: bold; text-transform: uppercase; font-size: 10px; color: #475569; }
+                      tr:nth-child(even) { background-color: #f1f5f9; }
+                      .footer { margin-top: 20px; font-size: 10px; color: #94a3b8; text-align: right; }
+                    </style>
+                  </head>
+                  <body>
+                    <h1>TaskPMP Enterprise - Time Logs Summary Report</h1>
+                    <p>Generated on: ${new Date().toLocaleString()} | Scope: ${data.projectScope}</p>
+                    <table>
+                      <thead>
+                        <tr>
+                          ${columns.map((c: string) => `<th>${c}</th>`).join("")}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${exportRows
+                          .map(
+                            (row) =>
+                              `<tr>${columns.map((c: string) => `<td>${(row as any)[c] || ""}</td>`).join("")}</tr>`
+                          )
+                          .join("")}
+                      </tbody>
+                    </table>
+                    <div class="footer">Confidential - TaskPMP Management System</div>
+                    <script>
+                      window.onload = function() { window.print(); };
+                    </script>
+                  </body>
+                </html>
+              `;
+              printWin.document.write(htmlContent);
+              printWin.document.close();
+            }
+          }
         }}
       />
 

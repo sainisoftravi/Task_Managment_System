@@ -131,7 +131,31 @@ export default function ProjectsPage() {
   }
 
   function handleExportProjects() {
-    window.open("/api/reports/export?type=projects", "_blank");
+    const columns = ["ID", "Project Name", "Owner", "Status", "Progress (%)", "Start Date", "Due Date"];
+    const exportRows = projects.map((p) => ({
+      "ID": p.key || (p as any).id.slice(0, 8),
+      "Project Name": p.name,
+      "Owner": (p as any).owner?.name || "Ravi Saini",
+      "Status": p.status || "Active",
+      "Progress (%)": "0%",
+      "Start Date": p.startDate ? new Date(p.startDate).toISOString().split("T")[0] : "2025-12-22",
+      "Due Date": p.dueDate ? new Date(p.dueDate).toISOString().split("T")[0] : "2026-06-30",
+    }));
+
+    const headerRow = columns.join(",");
+    const bodyRows = exportRows.map((row) =>
+      columns.map((col) => `"${String((row as any)[col] || "").replace(/"/g, '""')}"`).join(",")
+    );
+    const csvContent = "\uFEFF" + [headerRow, ...bodyRows].join("\n");
+
+    const blob = new Blob([csvContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `projects_list_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   const filtered = projects.filter((p) => {

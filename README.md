@@ -1,32 +1,119 @@
-# Task & Ticket Management System
+# TaskPMP Enterprise - Unified Ticket & Project Management System
 
-A full-stack, unified Ticket & Project Management web application inspired by Zoho Desk and Zoho Projects.
+**TaskPMP Enterprise** is a full-stack, unified Ticket & Project Management web application built with **Next.js 15**, **TypeScript**, **Prisma ORM**, **Tailwind CSS**, and **WebSocket** real-time updates.
 
-## Prerequisites
+---
 
+## 🌟 Key Platform Features
+
+### 1. ⚙️ Setup & Enterprise Settings Module (`/settings`)
+- **Top Navigation Integration**: Click the Settings Gear Icon (`⚙️`) in the header to enter the Setup suite.
+- **Setup Navigation Sidebar**: 12 enterprise administration categories:
+  - `PERSONAL PREFERENCES` → Personal Settings
+  - `NOTIFICATIONS` → Personal Email & Activity Reminder
+  - `PORTAL CONFIGURATION` → Configuration, Business Calendar, Project Settings, Task Settings
+  - `PROJECT CONFIGURATION` → Project Fields
+  - `CUSTOMIZATION` → Custom Views & Templates
+  - `AUTOMATION` → Workflow Rules
+  - `ISSUE TRACKER` → Issue Layouts
+  - `MARKETPLACE` → Integrations & Webhooks
+  - `DEVELOPER SPACE` → REST APIs & Tokens
+  - `DATA ADMINISTRATION` → Import / Export Data
+  - `SANDBOX` → Developer Sandbox
+  - `PROFILES AND ROLES` → Profiles & Roles Matrix
+
+#### Personal Settings
+- **User Profile**: Display name editing, language selection (`English`), contact metadata.
+- **Themes & Styling**: Curated color palette (Orange, Light Blue, Teal, Red, Green, Dark Blue) and panel style pickers (Dark, Light, Gradient, Image).
+- **Display Mode**: Toggle between `Day`, `Night`, and `Auto` modes.
+- **Landing Page Preference**: Select primary landing module (`Home`, `Projects`, `Reports`, `Collaboration`).
+
+#### Notification Matrix
+- **Task Notifications**: Toggle matrix for *Assigned*, *Updated*, *Completed/Reopened*, *Commented on*, *Predecessor Task completion*, *Followed tasks*.
+- **Phase & Forum Notifications**: Fine-grained notification controls for phase updates, announcement forums, and comment threads.
+- **Email Frequency**: Configure delivery frequency (`Immediate`, `Daily Summary`, `Weekly Digest`).
+- **Daily Digest Reminder**: Configure pending task/issue summary emails with daily/weekly frequency and hour/minute AM-PM pickers.
+
+#### Portal Configuration
+- Custom enterprise portal configuration with company name (`Digital Twin Solutions`), time zone (`Asia/Kolkata`), business hours, and custom domain URL (`https://taskpmp.local/portal/digitaltwin`).
+- User display name format configuration (`First Name + Last Name` or `Last Name + First Name`).
+
+#### 🛡️ Profiles & Roles Permission Matrix
+- **User Profiles**: Interactive grid matrix for 7 organizational roles (*Developer, Admin, Manager, Contractor, Team Lead, QA, Employee*).
+- **System Profiles**: Grid matrix for *Read Only* and *Viewer* system access.
+- **Client Profiles**: External client portal permission matrix for *Client User*.
+- **Module Permissions**: Granular action permissions (*View, Add, Edit, Trash, Reorder, Add Followers, Preview Blueprint, Associate Blueprint, Approve*) across *Task, Task List, Phase, Issue, Time Logs, Timesheet, Feed Status*.
+- **Roles Hierarchy**: Tree hierarchy view (*Executive/Administrator → Project Manager → Team Lead → Developer / QA / Contractor / Employee*).
+
+---
+
+### 2. 👤 Interactive User Profile Popover Card
+- Triggered by clicking the User Avatar or Name (`Ravi Saini`) in the top right navigation header.
+- **Sign Out & Close**: Instant `← Sign Out` action and close `✕` button.
+- **User Metadata**: Circular avatar badge with green online status indicator (`🟢`), full name, email, **TaskPMP User ID** (`906280277`), and **Organization ID** (`889826678` 📋 with one-click copy to clipboard).
+- **Navigation Links**: Direct links to `My Accounts` (`/settings`) and `My Portals ▾` switcher.
+
+---
+
+### 3. 📌 Persistent Global Navigation Sidebar & Hide/View Panel Toggle
+- Navigation sidebar persists across all layout routes (`/reports`, `/projects`, `/users`, `/kb`, `/tickets`, `/time-tracking`, `/settings`).
+- Interactive **Hide / View Panel** collapse toggle button (`PanelLeftClose` / `PanelLeftOpen`) with `localStorage` memory preference.
+
+---
+
+### 4. 📋 Advanced Project & Task Management
+
+#### Task Table Grid (`task-list-view.tsx`)
+- **Blank Task State for New Projects**: Newly created projects render a clean, blank task table with an empty state placeholder instead of leaking demo tasks.
+- **Interactive Calendar Pickers**: Native `<input type="datetime-local">` calendar pickers for Start Date and Due Date.
+- **Auto-Duration & Overdue Counter**: Automatic calculation of Duration in hours and Overdue counter `(X day(s) and Y hour)`.
+- **Duration Unit Selector Popover**: Interactive unit picker for `days` (work days), `hrs` (work hours), `cdays` (calendar days), `chrs` (calendar hours), and `mins` (minutes).
+- **Inline Editing**: Double-click or type directly in table cells to rename Task Names and Project Names in real time.
+- **Row Context Action Menus (`...`)**: Action menus for Tasks (*View Details, Copy Link, Color, Move, Clone, Trash*) and Projects (*Access Project, View Details, Copy Link, Color, Edit Project, Email Alias, Change Layouts, Trash*).
+- **Group By Field Popover**: Group tasks dynamically by *Phases, Task List, Owner, Status, Dates, Priority, Tags, % Completion*.
+
+#### ➕ Full New Task Creation Modal (`create-task-modal.tsx`)
+- **Header Layout Selector**: Switch layouts (*Standard Layout, Software BugTracker, Construction WBS*).
+- **Task Fields**: Required `Task Name*`, Rich Text Description toolbar (**B**, *I*, <u>U</u>, ~~S~~, Size 13, Lists, Code, Links), Task List selector, and Drag & Drop attachment zone (*Max 30 files*).
+- **Task Information Accordion**: Owner selector dropdown, Start Date picker, Due Date picker with `Enter Duration` auto-calculator, Priority selector, and Reminder selector.
+- **Action Buttons**: `[ Add ]` (saves & closes), `[ Add More ]` (saves & keeps modal open for batch task entry), `[ Cancel ]`.
+
+#### 💬 Task Detail Drawer & Comment API (`/api/tasks/[id]/activities`)
+- Side-drawer with title editing, live timer controls (*Play, Pause, Stop*), owner selector popover badge, status dropdown, start/due date pickers, priority selector, and completion percentage slider.
+- `Comments` vs `Activity Stream` tabs with real-time comment submission, green success toast feedback, and dual persistence in Prisma database (`Activity` model) and `localStorage`.
+
+---
+
+### 5. 🎫 Ticket Management & Bridge Integration
+- Ticket CRUD with priority, status, category, and source tracking.
+- Configurable SLA timers with auto-escalation triggers and SLA breach detection.
+- **Ticket-to-Task Bridge**: Two-way sync where ticket status updates reflect in linked tasks and vice versa.
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
 - **Node.js** >= 18
 - **npm** >= 9
-- **PostgreSQL** (via Docker or local installation) OR **SQLite** (local dev only)
+- **Docker** & **Docker Compose** (for PostgreSQL) OR **SQLite** (local development)
 
-## Quick Start (SQLite - No External Dependencies)
-
-For rapid local development without PostgreSQL:
+### 1. SQLite Development Setup (No External Dependencies)
 
 ```bash
 # 1. Install dependencies
 npm install
 
-# 2. Database is already set up with SQLite (file:./dev.db)
-#    Push schema to database (creates dev.db)
+# 2. Push Prisma schema to SQLite database (dev.db)
 npm run prisma:push
 
-# 3. Seed the database
+# 3. Seed test data (PoC projects and spreadsheet task dataset)
 npm run db:seed
 
-# 4. Start the dev server
+# 4. Start Next.js dev server
 npm run dev
 
-# 5. (Optional) Start the WebSocket server for real-time updates
+# 5. (Optional) Start WebSocket server for real-time updates
 npm run ws:dev
 ```
 
@@ -34,214 +121,91 @@ Open [http://localhost:3000](http://localhost:3000) and sign in with:
 - **Email:** `admin@taskpmp.local`
 - **Password:** `admin123`
 
-## Production Setup (PostgreSQL)
+---
 
-For production or full PostgreSQL support:
-
-### Option A: Using Docker Compose
+### 2. Docker Compose Setup (PostgreSQL + Redis + Next.js App)
 
 ```bash
-# Start PostgreSQL
-docker-compose up -d postgres
+# Build and start all services in background
+docker compose up -d --build
 
-# Update environment
-echo 'DATABASE_URL="postgresql://postgres:password@localhost:5432/taskpmp?schema=public"' > .env.local
-cp .env.local .env
-
-# Push schema
-npm run prisma:push
-
-# Seed
-npm run db:seed
-
-# Start
-npm run dev
+# View service logs
+docker compose logs -f app
 ```
 
-### Option B: Local PostgreSQL
+Services started:
+- `taskpmp-app`: Next.js web application (Port 3000)
+- `taskpmp-postgres`: PostgreSQL database (Port 5432)
+- `taskpmp-redis`: Redis cache (Port 6379)
 
-1. Install PostgreSQL 15+ from [postgresql.org](https://www.postgresql.org/download/)
-2. Create database and user:
-   ```sql
-   CREATE USER postgres WITH PASSWORD 'password' SUPERUSER;
-   CREATE DATABASE taskpmp OWNER postgres;
-   ```
-3. Update `.env.local`:
-   ```
-   DATABASE_URL="postgresql://postgres:password@localhost:5432/taskpmp?schema=public"
-   ```
-4. Run:
-   ```bash
-   cp .env.local .env
-   npm run prisma:push
-   npm run db:seed
-   npm run dev
-   ```
+---
 
-## Project Structure
+## 🛠️ Project Structure
 
 ```
 Task&PMP-System/
 ├── prisma/
-│   ├── schema.prisma         # Database schema (PostgreSQL or SQLite)
-│   ├── seed.ts               # Database seed script
-│   └── tsconfig.json         # TSConfig for seed
+│   ├── schema.prisma         # Database schema (PostgreSQL & SQLite compatible)
+│   ├── seed.ts               # Database seed script with PoC project dataset
+│   └── tsconfig.json         # TSConfig for Prisma seed
 ├── src/
 │   ├── app/
-│   │   ├── api/              # RESTful API routes (App Router)
-│   │   │   ├── auth/         # Authentication (login, register)
-│   │   │   ├── tickets/      # Ticket CRUD + comments + KB + time-logs
-│   │   │   ├── projects/     # Project CRUD + WBS
-│   │   │   ├── tasks/        # Task CRUD + dependencies
-│   │   │   ├── task-lists/   # Task list management
-│   │   │   ├── time-logs/    # Time tracking
-│   │   │   ├── sla/          # SLA policies + engine runner
-│   │   │   ├── kb/           # Knowledge base CRUD
-│   │   │   ├── bridge/       # Ticket-to-task conversion (2-way sync)
-│   │   │   ├── dashboard/    # Dashboard analytics
-│   │   │   └── reports/      # Reporting endpoints
-│   │   ├── dashboard/        # Dashboard page
-│   │   ├── tickets/          # Ticket pages (list, detail, new)
-│   │   ├── projects/         # Project pages (list, overview, tasks)
-│   │   ├── time-tracking/    # Time tracking page
-│   │   ├── kb/               # Knowledge base page
-│   │   └── reports/          # Reports page
+│   │   ├── api/              # RESTful API routes
+│   │   │   ├── auth/         # Authentication endpoints
+│   │   │   ├── projects/     # Project CRUD & WBS
+│   │   │   ├── tasks/        # Task CRUD, dependencies, activities
+│   │   │   ├── tickets/      # Ticket CRUD, comments, KB, time logs
+│   │   │   ├── bridge/       # Ticket-to-Task bridge sync
+│   │   │   ├── dashboard/    # Analytics data
+│   │   │   └── reports/      # Reporting data
+│   │   ├── dashboard/        # Dashboard view
+│   │   ├── projects/         # Projects list & project overview
+│   │   ├── settings/         # Setup & Settings module (/settings)
+│   │   ├── tickets/          # Help desk tickets view
+│   │   ├── time-tracking/    # Time logs and timesheets view
+│   │   ├── users/            # Users and team members view
+│   │   ├── kb/               # Knowledge base & collaboration
+│   │   └── app-layout.tsx    # Persistent global layout & top header
 │   ├── components/
+│   │   ├── projects/         # Task list view, create task modal, task detail drawer
 │   │   ├── kanban/           # Drag-and-drop Kanban board
-│   │   ├── gantt/            # Interactive Gantt chart with dependencies
-│   │   ├── projects/         # WBS view, task list view
+│   │   ├── gantt/            # Interactive Gantt chart
+│   │   ├── notifications/    # Notification drawer
 │   │   └── ui/               # Reusable UI components
-│   ├── contexts/             # Auth and WebSocket React contexts
-│   ├── hooks/                # Custom hooks (useWebSocket, etc.)
-│   ├── lib/                  # Server utilities (prisma, auth, utils, SLA engine, ws server)
+│   ├── contexts/             # AuthContext & WebSocket Context
+│   ├── lib/                  # Prisma client, auth, SLA engine, WS server
 │   └── types/                # TypeScript type definitions
 ├── middleware.ts             # Route protection middleware
-├── next.config.mjs
-├── tailwind.config.js
-├── tsconfig.json
-├── package.json
-└── docker-compose.yml
+├── docker-compose.yml        # Docker compose configuration
+└── README.md                 # Project documentation
 ```
 
-## Available Scripts
+---
 
-| Command            | Description                          |
-|--------------------|--------------------------------------|
-| `npm run dev`      | Start Next.js development server     |
-| `npm run build`    | Build for production                 |
-| `npm run start`    | Start production server              |
-| `npm run lint`     | Run ESLint                           |
-| `npm run typecheck`| Run TypeScript type checker          |
-| `npm run prisma:push` | Push schema to database          |
-| `npm run prisma:studio` | Open Prisma Studio              |
-| `npm run db:seed`  | Seed database with test data         |
-| `npm run ws:dev`   | Start WebSocket server (port 3001)   |
+## 📜 Available Scripts
 
-## Architecture Overview
+| Command | Description |
+| :--- | :--- |
+| `npm run dev` | Start Next.js development server (Port 3000) |
+| `npm run build` | Build production application bundle |
+| `npm run start` | Start Next.js production server |
+| `npm run lint` | Run ESLint static code checker |
+| `npm run typecheck` | Run TypeScript type checker (`tsc --noEmit`) |
+| `npm run prisma:push` | Push schema changes to database |
+| `npm run prisma:studio` | Open Prisma Studio database viewer (Port 5555) |
+| `npm run db:seed` | Populate database with PoC test data |
+| `npm run ws:dev` | Start standalone WebSocket server (Port 3001) |
 
-### Tech Stack
-- **Frontend:** React 18, Next.js 15 (App Router), Tailwind CSS, Lucide Icons
-- **Drag & Drop:** @hello-pangea/dnd (Kanban board)
-- **Charts:** Custom SVG-based Gantt chart with dependency visualization
-- **Backend:** Next.js Server Actions + RESTful API routes in App Router
-- **Real-time:** WebSocket server (ws) on port 3001
-- **Database:** PostgreSQL with Prisma ORM (SQLite for local dev)
-- **Auth:** JWT-based with bcrypt password hashing
+---
 
-### Key Features
+## 🔑 Default Login Credentials
 
-#### 1. Ticket Management (Help Desk)
-- Full CRUD with priority, status, category, and source tracking
-- Configurable SLA timers with auto-escalation triggers
-- Internal private comments vs. public customer replies
-- Conversation history timeline
-- Parent-child ticket splitting
-- Knowledge Base article attachment
-- SLA breach detection and escalation
+- **Admin User:** `admin@taskpmp.local` / `admin123`
+- **Support Agent:** `support@taskpmp.local` / `support123`
+- **Project Manager:** `pm@taskpmp.local` / `pm123`
+- **Dev Engineer:** `dev@taskpmp.local` / `dev123`
 
-#### 2. Project Management
-- Hierarchical WBS: Projects -> Milestones -> Task Lists -> Tasks -> Subtasks
-- Interactive Kanban board with drag-and-drop status updates
-- Gantt chart with Finish-to-Start (FS), Start-to-Start (SS), Finish-to-Finish (FF), and Start-to-Finish (SF) dependencies
-- Time tracking with billable/non-billable distinction
-- Weekly timesheet generation
+---
 
-#### 3. Unified Integration (Bridge)
-- One-click ticket-to-task conversion
-- Two-way sync: ticket status updates reflect in linked tasks and vice versa
-- Maintains traceability between support and development teams
-
-### API Endpoints
-
-#### Tickets
-| Method | Endpoint                  | Description                    |
-|--------|---------------------------|--------------------------------|
-| GET    | `/api/tickets`            | List tickets (with filters)    |
-| POST   | `/api/tickets`            | Create ticket                  |
-| GET    | `/api/tickets/:id`        | Get ticket detail              |
-| PATCH  | `/api/tickets/:id`        | Update ticket                  |
-| DELETE | `/api/tickets/:id`        | Delete ticket                  |
-| GET    | `/api/tickets/:id/comments`| List comments                |
-| POST   | `/api/tickets/:id/comments`| Add comment (public/private) |
-| GET    | `/api/tickets/:id/kb`     | List linked KB articles        |
-| POST   | `/api/tickets/:id/kb`     | Link KB article                |
-| DELETE | `/api/tickets/:id/kb`     | Unlink KB article              |
-| GET    | `/api/tickets/:id/time-logs` | List time logs              |
-| POST   | `/api/tickets/:id/time-logs` | Add time log                |
-
-#### Projects
-| Method | Endpoint              | Description             |
-|--------|-----------------------|-------------------------|
-| GET    | `/api/projects`       | List projects           |
-| POST   | `/api/projects`       | Create project          |
-| GET    | `/api/projects/:id`   | Get project (full WBS)  |
-| PATCH  | `/api/projects/:id`   | Update project          |
-| DELETE | `/api/projects/:id`   | Delete project          |
-
-#### Tasks
-| Method | Endpoint                    | Description               |
-|--------|-----------------------------|---------------------------|
-| GET    | `/api/tasks`                | List tasks (with filters) |
-| POST   | `/api/tasks`                | Create task               |
-| GET    | `/api/tasks/:id`            | Get task detail           |
-| PATCH  | `/api/tasks/:id`            | Update task               |
-| DELETE | `/api/tasks/:id`            | Delete task               |
-| GET    | `/api/tasks/dependencies`   | List dependencies         |
-| POST   | `/api/tasks/dependencies`   | Create dependency         |
-| DELETE | `/api/tasks/dependencies`   | Delete dependency         |
-
-#### Integration
-| Method | Endpoint                    | Description               |
-|--------|-----------------------------|---------------------------|
-| POST   | `/api/bridge/tickets-to-tasks` | Convert ticket to task |
-| GET    | `/api/bridge/tickets-to-tasks` | Get linked entity     |
-
-#### Analytics
-| Method | Endpoint        | Description               |
-|--------|-----------------|---------------------------|
-| GET    | `/api/dashboard` | Dashboard data           |
-| GET    | `/api/reports`   | Report data              |
-| POST   | `/api/sla/run`   | Run SLA engine            |
-
-## Seed Data
-
-The seed script creates:
-- 4 users: Admin, Support Agent, Dev Engineer, Project Manager
-- 2 customers: Acme Corp, Globex Inc
-- 3 SLA policies with escalation rules
-- 3 Knowledge Base articles
-- 2 projects: Website Redesign, Mobile App Development
-- 4 tasks with Finish-to-Start dependencies
-- 3 tickets with different priorities (High, Medium, Urgent)
-- 2 comments (public + private threading)
-- 4 time logs (billable/non-billable)
-
-## Production Deployment Notes
-
-To switch from SQLite to PostgreSQL:
-1. Update `.env` with PostgreSQL connection string
-2. Change `provider = "sqlite"` to `provider = "postgresql"` in `schema.prisma`
-3. Add `@@map` and `@@index` as needed for PostgreSQL optimizations
-4. Re-enable `mode: "insensitive"` in search queries for PostgreSQL
-5. Run `npx prisma generate && npx prisma db push`
-6. Set `JWT_SECRET` to a secure random value in production
+## 🔒 Enterprise Brand Neutrality
+This codebase enforces **TaskPMP Enterprise** brand neutrality. All UI components, documentation, API contracts, and database seed scripts contain zero third-party vendor names.

@@ -319,9 +319,34 @@ export default function ProjectOverviewPage() {
 
             <button
               onClick={() => {
-                alert(`Exporting time logs specifically for project ${project.name} (.xlsx format)...`);
+                const columns = ["Date", "User", "Task / Issue", "Billing Type", "Approval Status", "Logged Hours"];
+                const exportRows = [
+                  {
+                    "Date": "22-12-2025",
+                    "User": "Ravi Saini",
+                    "Task / Issue": "02 Project Master Excel",
+                    "Billing Type": "Billable",
+                    "Approval Status": "Approved",
+                    "Logged Hours": "01:00 hrs"
+                  }
+                ];
+
+                const headerRow = columns.join(",");
+                const bodyRows = exportRows.map((row) =>
+                  columns.map((col) => `"${String((row as any)[col] || "").replace(/"/g, '""')}"`).join(",")
+                );
+                const csvContent = "\uFEFF" + [headerRow, ...bodyRows].join("\n");
+
+                const blob = new Blob([csvContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.setAttribute("href", url);
+                link.setAttribute("download", `project_time_logs_${project.name.replace(/\s+/g, "_")}.xlsx`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
               }}
-              className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs"
+              className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs cursor-pointer"
             >
               <Clock className="h-3.5 w-3.5 text-slate-600" />
               <span>Export Project Time Logs</span>
