@@ -27,6 +27,8 @@ import {
   PanelLeftOpen,
   Search,
   Plus,
+  Copy,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import NotificationDrawer from "@/components/notifications/notification-drawer";
@@ -60,6 +62,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [overviewExpanded, setOverviewExpanded] = useState(true);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [profileCardOpen, setProfileCardOpen] = useState(false);
 
   // Load persistent sidebar collapse preference
   useEffect(() => {
@@ -281,11 +284,87 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Link href="/settings" className="rounded-md p-2 text-slate-500 hover:bg-slate-100 cursor-pointer" title="Setup & Settings">
               <Settings className="h-5 w-5" />
             </Link>
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-[#0070BA] text-white flex items-center justify-center font-bold text-xs">
-                {user?.name?.[0] || user?.email?.[0] || "R"}
-              </div>
-              <span className="text-xs font-bold text-slate-700">{user.name || user.email}</span>
+
+            {/* Interactive User Profile Menu Button */}
+            <div className="relative">
+              <button
+                onClick={() => setProfileCardOpen(!profileCardOpen)}
+                className="flex items-center gap-2 rounded-lg p-1 hover:bg-slate-100 transition-colors cursor-pointer"
+                title="User Profile & Account"
+              >
+                <div className="h-8 w-8 rounded-full bg-[#0070BA] text-white flex items-center justify-center font-bold text-xs shadow-2xs">
+                  {user?.name?.[0] || user?.email?.[0] || "R"}
+                </div>
+                <span className="text-xs font-bold text-slate-700">{user?.name || user?.email || "Ravi Saini"}</span>
+              </button>
+
+              {/* User Profile Popover Card matching Screenshot 2 */}
+              {profileCardOpen && (
+                <div className="absolute right-0 mt-2 z-50 w-80 rounded-xl bg-slate-50 border border-slate-200 p-4 shadow-2xl font-sans text-slate-800 animate-fadeIn">
+                  {/* Card Header: Sign Out on Left, Close on Right */}
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-200/60">
+                    <button
+                      onClick={() => {
+                        setProfileCardOpen(false);
+                        logout();
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+                    >
+                      <LogOut className="h-4 w-4 text-blue-600" />
+                      <span>Sign Out</span>
+                    </button>
+
+                    <button
+                      onClick={() => setProfileCardOpen(false)}
+                      className="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-200/50 cursor-pointer"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {/* User Info Details matching Screenshot 2 */}
+                  <div className="py-4 space-y-3">
+                    <div className="flex items-center gap-4">
+                      <div className="relative">
+                        <div className="h-16 w-16 rounded-full bg-slate-200 text-slate-500 font-bold text-xl flex items-center justify-center border-2 border-white shadow-xs">
+                          {user?.name?.[0] || "R"}
+                        </div>
+                        <span className="h-4 w-4 bg-emerald-500 rounded-full border-2 border-white absolute bottom-0 right-0" title="Online Status" />
+                      </div>
+
+                      <div className="space-y-0.5 overflow-hidden">
+                        <h4 className="font-bold text-base text-slate-900 truncate">{user?.name || "Ravi Saini"}</h4>
+                        <p className="text-xs text-slate-500 truncate">{user?.email || "ravi@digital-twin-solutions.com"}</p>
+                        <p className="text-[11px] text-slate-500">TaskPMP User ID: <span className="font-mono font-semibold text-slate-700">906280277</span></p>
+                        <div className="flex items-center gap-1 text-[11px] text-slate-500">
+                          <span>Organization ID: <strong className="font-mono font-semibold text-slate-700">889826678</strong></span>
+                          <button
+                            onClick={() => alert("Copied Organization ID: 889826678 to clipboard")}
+                            className="text-blue-600 hover:text-blue-800 p-0.5 cursor-pointer"
+                            title="Copy Organization ID"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom Footer Navigation matching Screenshot 2 */}
+                  <div className="pt-3 border-t border-slate-200/60 flex items-center justify-start gap-2 text-xs font-semibold text-slate-700">
+                    <Link href="/settings" onClick={() => setProfileCardOpen(false)} className="hover:text-blue-600 hover:underline">
+                      My Accounts
+                    </Link>
+                    <span className="text-slate-300">•</span>
+                    <div className="relative group">
+                      <button className="inline-flex items-center gap-1 hover:text-blue-600 cursor-pointer">
+                        <span>My Portals</span>
+                        <ChevronDown className="h-3 w-3 text-slate-400" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>
