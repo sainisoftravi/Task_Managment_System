@@ -21,11 +21,20 @@ import {
   Percent,
   Layers,
   Ban,
-  CheckCircle2
+  CheckCircle2,
+  MoreHorizontal,
+  ExternalLink,
+  Copy,
+  Palette,
+  Move,
+  CopyPlus,
+  Trash2,
+  Eye
 } from "lucide-react";
 import TaskDetailDrawer from "@/components/projects/task-detail-drawer";
 import AddTaskListModal from "@/components/projects/add-task-list-modal";
 import CloneTaskListModal from "@/components/projects/clone-task-list-modal";
+import CreateTaskModal from "@/components/projects/create-task-modal";
 
 interface ListViewProps {
   tasks: Task[];
@@ -44,7 +53,12 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showAddTaskListModal, setShowAddTaskListModal] = useState(false);
   const [showCloneTaskListModal, setShowCloneTaskListModal] = useState(false);
+  const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
   const [selectedDrawerTask, setSelectedDrawerTask] = useState<any | null>(null);
+
+  // Active duration popover row ID & active row context menu ID
+  const [activeDurationPopoverId, setActiveDurationPopoverId] = useState<string | null>(null);
+  const [activeRowMenuId, setActiveRowMenuId] = useState<string | null>(null);
 
   // Default interactive demo tasks matching Screenshot 1 & 2
   const initialTasksList = [
@@ -58,6 +72,8 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
       dueDate: "2025-12-20T11:00",
       overdueText: "(254 day(s) and 7 hour)",
       duration: "02:00 hrs",
+      durationUnit: "hrs",
+      durationValue: 2,
       priority: "! Medium",
       pct: 0,
     },
@@ -70,7 +86,9 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
       startDate: "2025-12-22T19:00",
       dueDate: "2025-12-23T11:00",
       overdueText: "(178 day(s) and 10 hour)",
-      duration: "16:00 hrs",
+      duration: "01:00 hrs",
+      durationUnit: "hrs",
+      durationValue: 1,
       priority: "! Low",
       pct: 0,
     },
@@ -84,6 +102,8 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
       dueDate: "2026-01-22T19:00",
       overdueText: "(156 day(s) and 3 hour)",
       duration: "41:00 hrs",
+      durationUnit: "hrs",
+      durationValue: 41,
       priority: "! None",
       pct: 90,
     },
@@ -97,6 +117,8 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
       dueDate: "2026-02-01T11:00",
       overdueText: "(211 day(s) and 7 hour)",
       duration: "02:00 hrs",
+      durationUnit: "hrs",
+      durationValue: 2,
       priority: "! High",
       pct: 95,
     },
@@ -110,6 +132,8 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
       dueDate: "2026-02-05T11:00",
       overdueText: "(207 day(s) and 7 hour)",
       duration: "01:00 hrs",
+      durationUnit: "hrs",
+      durationValue: 1,
       priority: "! None",
       pct: 0,
     },
@@ -117,7 +141,7 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
 
   // Dynamic Local Tasks State
   const [localTasks, setLocalTasks] = useState<any[]>(() => {
-    if (tasks && tasks.length > 0) {
+    if (Array.isArray(tasks)) {
       return tasks.map((t) => ({
         id: t.id,
         key: t.key || `1P1-${t.id.slice(0, 4)}`,
@@ -127,7 +151,9 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
         startDate: t.startDate ? parseToDateTimeInput(t.startDate) : "2025-12-22T19:00",
         dueDate: t.dueDate ? parseToDateTimeInput(t.dueDate) : "2025-12-23T11:00",
         overdueText: "(178 day(s) and 10 hour)",
-        duration: "02:00 hrs",
+        duration: "01:00 hrs",
+        durationUnit: "hrs",
+        durationValue: 1,
         priority: t.priority ? `! ${t.priority}` : "! None",
         pct: (t as any).pct ?? 0,
       }));
@@ -136,7 +162,7 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
   });
 
   useEffect(() => {
-    if (tasks && tasks.length > 0) {
+    if (Array.isArray(tasks)) {
       setLocalTasks(
         tasks.map((t) => ({
           id: t.id,
@@ -147,7 +173,9 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
           startDate: t.startDate ? parseToDateTimeInput(t.startDate) : "2025-12-22T19:00",
           dueDate: t.dueDate ? parseToDateTimeInput(t.dueDate) : "2025-12-23T11:00",
           overdueText: "(178 day(s) and 10 hour)",
-          duration: "02:00 hrs",
+          duration: "01:00 hrs",
+          durationUnit: "hrs",
+          durationValue: 1,
           priority: t.priority ? `! ${t.priority}` : "! None",
           pct: (t as any).pct ?? 0,
         }))
@@ -221,9 +249,28 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
     return { duration: computedDuration, overdueText: computedOverdue };
   };
 
+  // Format Duration string from number + unit
+  const formatDurationString = (val: number, unit: string) => {
+    if (unit === "hrs") {
+      return `${String(val).padStart(2, "0")}:00 hrs`;
+    }
+    if (unit === "days") {
+      return `${val} ${val === 1 ? "day" : "days"}`;
+    }
+    if (unit === "cdays") {
+      return `${val} ${val === 1 ? "cday" : "cdays"}`;
+    }
+    if (unit === "chrs") {
+      return `${val} chrs`;
+    }
+    if (unit === "mins") {
+      return `${val} mins`;
+    }
+    return `${val} ${unit}`;
+  };
+
   // Handler for updating task inline or from drawer
   const handleUpdateTask = (updatedTask: any) => {
-    // Re-calculate dates & duration if startDate or dueDate changed
     const dateCalcs = calculateTaskDates(updatedTask.startDate, updatedTask.dueDate);
     const finalTask = {
       ...updatedTask,
@@ -236,6 +283,22 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
     );
     if (selectedDrawerTask && selectedDrawerTask.id === finalTask.id) {
       setSelectedDrawerTask({ ...selectedDrawerTask, ...finalTask });
+    }
+
+    // PATCH to backend API if DB task ID
+    if (finalTask.id && !finalTask.id.startsWith("1P1-")) {
+      fetch(`/api/tasks/${finalTask.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: finalTask.title }),
+      }).catch(() => {});
+    }
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    setLocalTasks((prev) => prev.filter((t) => t.id !== taskId));
+    if (selectedDrawerTask?.id === taskId) {
+      setSelectedDrawerTask(null);
     }
   };
 
@@ -251,7 +314,9 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
       startDate: "2025-12-22T19:00",
       dueDate: "2025-12-23T11:00",
       overdueText: "(178 day(s) and 10 hour)",
-      duration: "16:00 hrs",
+      duration: "01:00 hrs",
+      durationUnit: "hrs",
+      durationValue: 1,
       priority: "! Medium",
       pct: 0,
     };
@@ -287,6 +352,14 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
     },
   ];
 
+  const durationUnits = [
+    { id: "days", label: "days (Work Days)" },
+    { id: "hrs", label: "hrs (Work Hours)" },
+    { id: "cdays", label: "cdays (Calendar Days)" },
+    { id: "chrs", label: "chrs (Calendar Hours)" },
+    { id: "mins", label: "mins (Minutes)" },
+  ];
+
   return (
     <div className="space-y-3 font-sans">
       {/* Task Detail Drawer */}
@@ -304,7 +377,7 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-800 bg-white focus:border-[#0070BA] focus:outline-none"
+            className="rounded border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-800 bg-white focus:border-[#0070BA] focus:outline-none cursor-pointer"
           >
             <option value="ALL">All Open ▾</option>
             <option value="not yet Started">not yet Started</option>
@@ -318,7 +391,7 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
           <div className="relative">
             <button
               onClick={() => setShowGroupByPopover(!showGroupByPopover)}
-              className="inline-flex items-center gap-1.5 rounded border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+              className="inline-flex items-center gap-1.5 rounded border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
             >
               <Sparkles className="h-3.5 w-3.5 text-slate-500" />
               <span>Group By: {selectedGroupBy} ▾</span>
@@ -329,7 +402,7 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
               <div className="absolute left-0 mt-2 z-50 w-72 rounded-lg bg-white p-3 shadow-xl border border-slate-200 font-sans">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
                   <h4 className="text-xs font-bold text-slate-900">Group By</h4>
-                  <button onClick={() => setShowGroupByPopover(false)} className="text-slate-400 hover:text-slate-700">
+                  <button onClick={() => setShowGroupByPopover(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
                     <X className="h-4 w-4" />
                   </button>
                 </div>
@@ -368,7 +441,7 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                                   setSelectedGroupBy(item.id);
                                   setShowGroupByPopover(false);
                                 }}
-                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded text-left transition-colors ${
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded text-left transition-colors cursor-pointer ${
                                   isSelected
                                     ? "bg-blue-50 text-[#0070BA] font-bold"
                                     : "text-slate-700 hover:bg-slate-50"
@@ -394,7 +467,7 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
 
         {/* Right Buttons: Split Add Task Dropdown */}
         <div className="flex items-center gap-2">
-          <button className="inline-flex items-center gap-1.5 rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+          <button className="inline-flex items-center gap-1.5 rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">
             <Sparkles className="h-3.5 w-3.5 text-[#0070BA]" />
             <span>Automation</span>
           </button>
@@ -403,14 +476,14 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
           <div className="relative">
             <div className="inline-flex rounded-md shadow-xs">
               <button
-                onClick={handleAddNewTask}
-                className="rounded-l-md bg-[#0070BA] px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 border-r border-blue-600"
+                onClick={() => setShowCreateTaskModal(true)}
+                className="rounded-l-md bg-[#0070BA] px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 border-r border-blue-600 cursor-pointer"
               >
                 Add Task
               </button>
               <button
                 onClick={() => setShowAddMenu(!showAddMenu)}
-                className="rounded-r-md bg-[#0070BA] px-2 py-1.5 text-xs font-bold text-white hover:bg-blue-700"
+                className="rounded-r-md bg-[#0070BA] px-2 py-1.5 text-xs font-bold text-white hover:bg-blue-700 cursor-pointer"
               >
                 <DropdownIcon className="h-3.5 w-3.5" />
               </button>
@@ -421,9 +494,9 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                 <button
                   onClick={() => {
                     setShowAddMenu(false);
-                    handleAddNewTask();
+                    setShowCreateTaskModal(true);
                   }}
-                  className="w-full text-left px-3 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA]"
+                  className="w-full text-left px-3 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
                 >
                   Add Task
                 </button>
@@ -432,7 +505,7 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                     setShowAddMenu(false);
                     setShowAddTaskListModal(true);
                   }}
-                  className="w-full text-left px-3 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA]"
+                  className="w-full text-left px-3 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
                 >
                   Add Task List
                 </button>
@@ -441,6 +514,15 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
           </div>
         </div>
       </div>
+
+      {/* Full New Task Modal Form matching Screenshots 1 & 2 */}
+      <CreateTaskModal
+        isOpen={showCreateTaskModal}
+        onClose={() => setShowCreateTaskModal(false)}
+        onAddTask={(newTaskData) => {
+          setLocalTasks([newTaskData, ...localTasks]);
+        }}
+      />
 
       {/* Add Task List Modal */}
       <AddTaskListModal
@@ -467,6 +549,7 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
           <table className="w-full text-xs text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold uppercase text-[11px]">
+                <th className="py-2.5 px-2 w-8 text-center">...</th>
                 <th className="py-2.5 px-3 w-6"></th>
                 <th className="py-2.5 px-3 w-20">ID</th>
                 <th className="py-2.5 px-3">
@@ -479,20 +562,132 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                 <th className="py-2.5 px-3 w-32 text-center">Status</th>
                 <th className="py-2.5 px-3 text-center w-48">Start Date</th>
                 <th className="py-2.5 px-3 text-center w-56">Due Date</th>
-                <th className="py-2.5 px-3 text-center w-24">Duration</th>
+
+                {/* Duration Header matching Screenshot */}
+                <th className="py-2.5 px-3 text-center w-32">
+                  <div className="flex items-center justify-center gap-1">
+                    <Clock className="h-3.5 w-3.5 text-[#0070BA]" />
+                    <span>Duration</span>
+                  </div>
+                </th>
+
                 <th className="py-2.5 px-3 text-center w-28">Priority</th>
                 <th className="py-2.5 px-3 text-center w-36">% Completion P...</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-sans">
-              {localTasks.map((task) => {
-                const isOverdue = !!task.overdueText;
+              {localTasks.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="py-12 text-center text-slate-500 bg-slate-50/50">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <ListTodo className="h-8 w-8 text-slate-300" />
+                      <p className="font-bold text-sm text-slate-700">No tasks in this project yet</p>
+                      <p className="text-xs text-slate-400">Click &quot;Add Task&quot; above to create your first task for this project.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                localTasks.map((task) => {
+                  const isOverdue = !!task.overdueText;
+                  const isDurationPopoverOpen = activeDurationPopoverId === task.id;
+                  const isRowMenuOpen = activeRowMenuId === task.id;
 
                 return (
                   <tr
                     key={task.id}
                     className="border-b border-slate-100 hover:bg-blue-50/30 transition-colors"
                   >
+                    {/* Row Context Menu (...) matching Screenshot 2 */}
+                    <td className="py-2.5 px-2 text-center relative">
+                      <button
+                        type="button"
+                        onClick={() => setActiveRowMenuId(isRowMenuOpen ? null : task.id)}
+                        className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                        title="Task Options"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
+
+                      {/* Row Action Dropdown Menu matching Screenshot 2 */}
+                      {isRowMenuOpen && (
+                        <div className="absolute left-6 top-2 z-50 w-48 rounded-md bg-white p-1.5 shadow-xl border border-slate-200 text-xs font-semibold text-slate-700 text-left">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDrawerTask(task);
+                              setActiveRowMenuId(null);
+                            }}
+                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            <span>View Details</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              window.open(`/projects/cm7m1fk0b002wtlck0xobsma8`, "_blank");
+                              setActiveRowMenuId(null);
+                            }}
+                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            <span>View Details in New Tab</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard?.writeText(window.location.href);
+                              alert("Task link copied!");
+                              setActiveRowMenuId(null);
+                            }}
+                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                            <span>Copy Link</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveRowMenuId(null)}
+                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+                          >
+                            <Palette className="h-3.5 w-3.5" />
+                            <span>Color</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveRowMenuId(null)}
+                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+                          >
+                            <Move className="h-3.5 w-3.5" />
+                            <span>Move</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleAddNewTask();
+                              setActiveRowMenuId(null);
+                            }}
+                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+                          >
+                            <CopyPlus className="h-3.5 w-3.5" />
+                            <span>Clone</span>
+                          </button>
+                          <div className="border-t border-slate-100 my-1" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleDeleteTask(task.id);
+                              setActiveRowMenuId(null);
+                            }}
+                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-rose-50 text-rose-600 font-bold cursor-pointer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>Trash</span>
+                          </button>
+                        </div>
+                      )}
+                    </td>
+
                     <td className="py-2.5 px-3 text-center text-slate-400">
                       <input type="checkbox" className="rounded text-[#0070BA]" />
                     </td>
@@ -505,12 +700,15 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                       {task.key || task.id}
                     </td>
 
-                    {/* Task Title */}
-                    <td
-                      onClick={() => setSelectedDrawerTask(task)}
-                      className="py-2.5 px-3 font-bold text-slate-900 hover:text-[#0070BA] cursor-pointer"
-                    >
-                      {task.title}
+                    {/* Interactive Task Name Cell (Directly Editable Inline Name Input) */}
+                    <td className="py-2.5 px-3 font-bold text-slate-900">
+                      <input
+                        type="text"
+                        value={task.title}
+                        onChange={(e) => handleUpdateTask({ ...task, title: e.target.value })}
+                        className="w-full rounded border border-transparent hover:border-slate-300 focus:border-[#0070BA] focus:outline-none px-1.5 py-0.5 text-xs font-bold text-slate-900 bg-transparent"
+                        placeholder="Task title..."
+                      />
                     </td>
 
                     {/* Owner Dropdown */}
@@ -518,7 +716,7 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                       <select
                         value={task.owner}
                         onChange={(e) => handleUpdateTask({ ...task, owner: e.target.value })}
-                        className="w-full border border-transparent hover:border-slate-300 rounded px-1 py-0.5 text-xs bg-transparent focus:border-[#0070BA] focus:outline-none"
+                        className="w-full border border-transparent hover:border-slate-300 rounded px-1 py-0.5 text-xs bg-transparent focus:border-[#0070BA] focus:outline-none cursor-pointer"
                       >
                         <option value="Ravi Saini">Ravi Saini</option>
                         <option value="amin ibrahim">amin ibrahim</option>
@@ -605,14 +803,77 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                       </div>
                     </td>
 
-                    {/* Auto-Calculated Duration */}
-                    <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-800">
-                      <input
-                        type="text"
-                        value={task.duration}
-                        onChange={(e) => handleUpdateTask({ ...task, duration: e.target.value })}
-                        className="w-full text-center border border-transparent hover:border-slate-300 rounded text-xs bg-transparent focus:border-[#0070BA] focus:outline-none font-bold"
-                      />
+                    {/* Interactive Duration Unit Popover Cell matching Screenshot */}
+                    <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-800 relative">
+                      <div
+                        onClick={() =>
+                          setActiveDurationPopoverId(isDurationPopoverOpen ? null : task.id)
+                        }
+                        className="cursor-pointer border border-transparent hover:border-[#0070BA] px-2 py-1 rounded bg-slate-50 hover:bg-white text-xs text-[#0070BA] flex items-center justify-center gap-1"
+                      >
+                        <span>{task.duration || "01:00 hrs"}</span>
+                        <ChevronDown className="h-3 w-3 text-slate-400" />
+                      </div>
+
+                      {/* Duration Unit Popover Menu matching Screenshot */}
+                      {isDurationPopoverOpen && (
+                        <div className="absolute left-1/2 -translate-x-1/2 mt-1 z-50 w-52 rounded-lg bg-white p-2.5 shadow-xl border border-slate-200 text-xs font-sans text-left">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                            Duration Options
+                          </div>
+                          <div className="text-[10px] text-slate-500 mb-2 font-mono bg-slate-100 p-1 rounded">
+                            days / hrs / cdays / chrs / mins
+                          </div>
+
+                          <div className="space-y-1 mb-2">
+                            <label className="block text-[10px] font-bold text-slate-600">Value</label>
+                            <input
+                              type="number"
+                              min={1}
+                              defaultValue={task.durationValue || 1}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                const newStr = formatDurationString(val, task.durationUnit || "hrs");
+                                handleUpdateTask({
+                                  ...task,
+                                  durationValue: val,
+                                  duration: newStr,
+                                });
+                              }}
+                              className="w-full border border-slate-300 rounded px-2 py-1 text-xs font-mono font-bold focus:border-[#0070BA] focus:outline-none"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block text-[10px] font-bold text-slate-600">Unit Type</label>
+                            <div className="grid grid-cols-1 gap-1">
+                              {durationUnits.map((u) => (
+                                <button
+                                  key={u.id}
+                                  type="button"
+                                  onClick={() => {
+                                    const val = task.durationValue || 1;
+                                    const newStr = formatDurationString(val, u.id);
+                                    handleUpdateTask({
+                                      ...task,
+                                      durationUnit: u.id,
+                                      duration: newStr,
+                                    });
+                                    setActiveDurationPopoverId(null);
+                                  }}
+                                  className={`w-full text-left px-2 py-1 rounded text-[11px] font-medium transition-colors ${
+                                    task.durationUnit === u.id
+                                      ? "bg-blue-50 text-[#0070BA] font-bold"
+                                      : "hover:bg-slate-100 text-slate-700"
+                                  }`}
+                                >
+                                  {u.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </td>
 
                     {/* Priority Dropdown */}
@@ -620,7 +881,7 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                       <select
                         value={task.priority}
                         onChange={(e) => handleUpdateTask({ ...task, priority: e.target.value })}
-                        className="border border-transparent hover:border-slate-300 rounded px-1 py-0.5 text-xs font-semibold text-slate-700 bg-transparent focus:border-[#0070BA] focus:outline-none"
+                        className="border border-transparent hover:border-slate-300 rounded px-1 py-0.5 text-xs font-semibold text-slate-700 bg-transparent focus:border-[#0070BA] focus:outline-none cursor-pointer"
                       >
                         <option value="! Low">! Low</option>
                         <option value="! Medium">! Medium</option>
@@ -650,7 +911,7 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                     </td>
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>

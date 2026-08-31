@@ -3,11 +3,35 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Project, ProjectStatus } from "@/types";
-import { Plus, Search, Filter, List, Sparkles, ChevronDown, User, Calendar, ArrowUpDown, LayoutGrid, Download, Lock, Globe, Shield, Archive, Trash2 } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Filter,
+  List,
+  Sparkles,
+  ChevronDown,
+  User,
+  Calendar,
+  ArrowUpDown,
+  LayoutGrid,
+  Download,
+  Lock,
+  Globe,
+  Shield,
+  Archive,
+  Trash2,
+  MoreHorizontal,
+  ExternalLink,
+  Copy,
+  Palette,
+  Edit,
+  Mail,
+  Layers,
+  Eye
+} from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 import ProjectGanttView from "@/components/projects/project-gantt-view";
-
 import TemplateGalleryModal from "@/components/projects/template-gallery-modal";
 
 export default function ProjectsPage() {
@@ -19,6 +43,7 @@ export default function ProjectsPage() {
   const [viewType, setViewType] = useState<"LIST" | "GANTT">("LIST");
   const [showGalleryModal, setShowGalleryModal] = useState(false);
 
+  // New Project Form Modal
   const [showNewForm, setShowNewForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newKey, setNewKey] = useState("");
@@ -29,6 +54,13 @@ export default function ProjectsPage() {
   const [billingMethod, setBillingMethod] = useState<"STAFF_HOURS" | "PROJECT_HOURS">("STAFF_HOURS");
   const [template, setTemplate] = useState("NONE");
   const [taskLayout, setTaskLayout] = useState("STANDARD");
+
+  // Edit / Rename Project Modal
+  const [editingProject, setEditingProject] = useState<any | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editKey, setEditKey] = useState("");
+  const [editStatus, setEditStatus] = useState("ACTIVE");
+  const [activeProjectMenuId, setActiveProjectMenuId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProjects();
@@ -75,6 +107,29 @@ export default function ProjectsPage() {
     }
   }
 
+  async function handleSaveEditedProject() {
+    if (!editingProject || !editName) return;
+    const token = localStorage.getItem("token");
+
+    // Local update
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === editingProject.id ? { ...p, name: editName, key: editKey, status: editStatus as any } : p
+      )
+    );
+
+    // API update if backend project
+    if (editingProject.id) {
+      await fetch(`/api/projects/${editingProject.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: editName, key: editKey, status: editStatus }),
+      }).catch(() => {});
+    }
+
+    setEditingProject(null);
+  }
+
   function handleExportProjects() {
     window.open("/api/reports/export?type=projects", "_blank");
   }
@@ -86,7 +141,7 @@ export default function ProjectsPage() {
   });
 
   return (
-    <div className="space-y-4 bg-slate-50 min-h-screen -m-6 p-6">
+    <div className="space-y-4 bg-slate-50 min-h-screen -m-6 p-6 font-sans">
       <TemplateGalleryModal
         isOpen={showGalleryModal}
         onClose={() => setShowGalleryModal(false)}
@@ -100,11 +155,11 @@ export default function ProjectsPage() {
       <div className="border-b border-slate-200 bg-white -mx-6 -mt-6 px-6 pt-4 pb-0 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-bold text-slate-900">Projects</h1>
-          
+
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowGalleryModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-[#0070BA]/30 bg-blue-50/50 px-3.5 py-2 text-xs font-semibold text-[#0070BA] hover:bg-blue-100/50 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-md border border-[#0070BA]/30 bg-blue-50/50 px-3.5 py-2 text-xs font-semibold text-[#0070BA] hover:bg-blue-100/50 transition-colors cursor-pointer"
             >
               <LayoutGrid className="h-4 w-4 text-[#0070BA]" />
               <span>Browse Templates</span>
@@ -112,7 +167,7 @@ export default function ProjectsPage() {
 
             <button
               onClick={() => setShowNewForm(true)}
-              className="inline-flex items-center gap-1.5 rounded-md bg-[#0070BA] px-3.5 py-2 text-xs font-bold text-white hover:bg-blue-700 shadow-xs transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-md bg-[#0070BA] px-3.5 py-2 text-xs font-bold text-white hover:bg-blue-700 shadow-xs transition-colors cursor-pointer"
             >
               <Plus className="h-4 w-4" />
               New Project
@@ -124,7 +179,7 @@ export default function ProjectsPage() {
         <div className="flex gap-6 border-b border-slate-200">
           <button
             onClick={() => setActiveTab("ACTIVE")}
-            className={`pb-2.5 text-sm font-semibold border-b-2 transition-colors ${
+            className={`pb-2.5 text-sm font-semibold border-b-2 transition-colors cursor-pointer ${
               activeTab === "ACTIVE"
                 ? "border-[#0070BA] text-[#0070BA]"
                 : "border-transparent text-slate-500 hover:text-slate-700"
@@ -134,7 +189,7 @@ export default function ProjectsPage() {
           </button>
           <button
             onClick={() => setActiveTab("DEACTIVATED")}
-            className={`pb-2.5 text-sm font-semibold border-b-2 transition-colors ${
+            className={`pb-2.5 text-sm font-semibold border-b-2 transition-colors cursor-pointer ${
               activeTab === "DEACTIVATED"
                 ? "border-[#0070BA] text-[#0070BA]"
                 : "border-transparent text-slate-500 hover:text-slate-700"
@@ -149,7 +204,7 @@ export default function ProjectsPage() {
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="relative">
-            <button className="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+            <button className="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 cursor-pointer">
               <span>All Projects</span>
               <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
             </button>
@@ -167,7 +222,7 @@ export default function ProjectsPage() {
           </div>
         </div>
       </div>
-      
+
       {/* Active vs Archived vs Templates Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4 border-b border-slate-200 text-xs font-bold">
@@ -176,7 +231,7 @@ export default function ProjectsPage() {
               setActiveTab("ACTIVE");
               setFilterDropdown("ALL");
             }}
-            className={`pb-2.5 transition-colors border-b-2 ${
+            className={`pb-2.5 transition-colors border-b-2 cursor-pointer ${
               activeTab === "ACTIVE" && filterDropdown !== "TEMPLATES"
                 ? "border-[#0070BA] text-[#0070BA]"
                 : "border-transparent text-slate-500 hover:text-slate-800"
@@ -190,7 +245,7 @@ export default function ProjectsPage() {
               setActiveTab("DEACTIVATED");
               setFilterDropdown("DEACTIVATED");
             }}
-            className={`pb-2.5 transition-colors border-b-2 ${
+            className={`pb-2.5 transition-colors border-b-2 cursor-pointer ${
               activeTab === "DEACTIVATED"
                 ? "border-[#0070BA] text-[#0070BA]"
                 : "border-transparent text-slate-500 hover:text-slate-800"
@@ -203,7 +258,7 @@ export default function ProjectsPage() {
             onClick={() => {
               setFilterDropdown("TEMPLATES");
             }}
-            className={`pb-2.5 transition-colors border-b-2 ${
+            className={`pb-2.5 transition-colors border-b-2 cursor-pointer ${
               filterDropdown === "TEMPLATES"
                 ? "border-[#0070BA] text-[#0070BA]"
                 : "border-transparent text-slate-500 hover:text-slate-800"
@@ -217,7 +272,7 @@ export default function ProjectsPage() {
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-md">
             <button
               onClick={() => setViewType("LIST")}
-              className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded ${
+              className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded cursor-pointer ${
                 viewType === "LIST" ? "bg-white text-[#0070BA] shadow-xs" : "text-slate-600 hover:text-slate-900"
               }`}
             >
@@ -226,7 +281,7 @@ export default function ProjectsPage() {
             </button>
             <button
               onClick={() => setViewType("GANTT")}
-              className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded ${
+              className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded cursor-pointer ${
                 viewType === "GANTT" ? "bg-white text-[#0070BA] shadow-xs" : "text-slate-600 hover:text-slate-900"
               }`}
             >
@@ -237,7 +292,7 @@ export default function ProjectsPage() {
 
           <button
             onClick={handleExportProjects}
-            className="flex items-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100/70 shadow-xs"
+            className="flex items-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100/70 shadow-xs cursor-pointer"
           >
             <Download className="h-3.5 w-3.5 text-emerald-600" />
             <span>Export Projects</span>
@@ -252,137 +307,333 @@ export default function ProjectsPage() {
           onProjectClick={(p) => (window.location.href = `/projects/${p.id}`)}
         />
       ) : (
-        /* Projects Data Table */
+        /* Projects Data Table matching Screenshot 1 */
         <div className="rounded-md border border-slate-200 bg-white shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
-                <th className="py-3 px-4 w-20">ID</th>
-                <th className="py-3 px-4">
-                  <div className="flex items-center gap-1 cursor-pointer">
-                    <span>Project Name</span>
-                    <ArrowUpDown className="h-3 w-3 text-slate-400" />
-                  </div>
-                </th>
-                <th className="py-3 px-4 text-center w-16">%</th>
-                <th className="py-3 px-4">Owner</th>
-                <th className="py-3 px-4 text-center w-28">Status</th>
-                <th className="py-3 px-4 w-36">Budget Variance</th>
-                <th className="py-3 px-4 w-36">Tasks</th>
-                <th className="py-3 px-4 text-center w-24">Phases</th>
-                <th className="py-3 px-4 text-right w-28">Due Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200/70 bg-white">
-              {loading ? (
-                Array.from({ length: 4 }).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td colSpan={9} className="py-4 px-4 h-12 bg-slate-50/40" />
-                  </tr>
-                ))
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-500">
-                    No projects found
-                  </td>
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+                  <th className="py-3 px-2 w-8 text-center">...</th>
+                  <th className="py-3 px-4 w-20">ID</th>
+                  <th className="py-3 px-4">
+                    <div className="flex items-center gap-1 cursor-pointer">
+                      <span>Project Name</span>
+                      <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                    </div>
+                  </th>
+                  <th className="py-3 px-4 text-center w-16">%</th>
+                  <th className="py-3 px-4">Owner</th>
+                  <th className="py-3 px-4 text-center w-28">Status</th>
+                  <th className="py-3 px-4 w-36">Budget Variance</th>
+                  <th className="py-3 px-4 w-36">Tasks</th>
+                  <th className="py-3 px-4 text-center w-24">Phases</th>
+                  <th className="py-3 px-4 text-right w-28">Due Date</th>
                 </tr>
-              ) : (
-                filtered.map((project, idx) => {
-                  const tasksTotal = project.tasks?.length || (idx === 0 ? 1 : idx === 1 ? 18 : 8);
-                  const tasksCompleted = Math.floor(tasksTotal * (idx === 0 ? 0 : idx === 1 ? 0.45 : 0.77));
-                  const progressPct = idx === 0 ? 0 : idx === 1 ? 45 : 77;
-                  const ownerName = project.owner?.name || (idx === 0 ? "Divakar Pandiy" : idx === 1 ? "Ravi Saini" : "Sushil Verma");
-                  const ownerInitials = ownerName.split(" ").map(n => n[0]).join("").slice(0, 2);
-
-                  return (
-                    <tr
-                      key={project.id}
-                      className="hover:bg-blue-50/30 transition-colors group relative border-l-4 border-l-[#F97316]"
-                    >
-                      {/* ID Column */}
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-700">
-                        {project.key || `DT-${31 - idx}`}
-                      </td>
-
-                      {/* Project Name Column */}
-                      <td className="py-3.5 px-4 font-medium">
-                        <Link
-                          href={`/projects/${project.id}`}
-                          className="text-slate-900 font-semibold hover:text-[#0070BA] transition-colors block"
-                        >
-                          {project.name}
-                        </Link>
-                      </td>
-
-                      {/* % Progress Column */}
-                      <td className="py-3.5 px-4 text-center font-bold text-slate-700">
-                        {progressPct}%
-                      </td>
-
-                      {/* Owner Column */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2">
-                          <div className="h-6 w-6 rounded-full bg-amber-400 text-amber-900 font-bold text-[10px] flex items-center justify-center border border-amber-300">
-                            {ownerInitials}
-                          </div>
-                          <span className="text-slate-800 font-medium">{ownerName}</span>
-                        </div>
-                      </td>
-
-                      {/* Status Column */}
-                      <td className="py-3.5 px-4 text-center">
-                        <span className="inline-flex items-center justify-center px-3 py-0.5 rounded text-xs font-bold bg-[#00C49F] text-white shadow-xs">
-                          {project.status === "ACTIVE" ? "Active" : project.status.replace("_", " ")}
-                        </span>
-                      </td>
-
-                      {/* Budget Variance Column */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex flex-col">
-                          <span className={`text-[11px] font-bold ${idx === 1 ? "text-red-600" : "text-emerald-600"}`}>
-                            {idx === 1 ? "-$12,400 (Overrun)" : "+$8,500 (Surplus)"}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-mono">
-                            {idx === 1 ? "Plan $50k / Act $62.4k" : "Plan $45k / Act $36.5k"}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Tasks Progress Column */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] text-slate-500 font-mono w-4">{tasksCompleted}</span>
-                          <div className="flex-1 bg-slate-200 h-2 rounded-full overflow-hidden">
-                            <div
-                              className="bg-emerald-500 h-full rounded-full transition-all"
-                              style={{ width: `${progressPct}%` }}
-                            />
-                          </div>
-                          <span className="text-[11px] font-bold text-slate-700 w-8">{progressPct}%</span>
-                          <span className="text-[11px] text-slate-400 font-mono w-4">{tasksTotal}</span>
-                        </div>
-                      </td>
-
-                      {/* Phases Column */}
-                      <td className="py-3.5 px-4 text-center">
-                        <span className="inline-block px-2 py-0.5 rounded bg-blue-50 text-[#0070BA] text-[10px] font-bold border border-blue-200">
-                          {idx === 0 ? "3 Phases" : "5 Phases"}
-                        </span>
-                      </td>
-
-                      {/* Date Column */}
-                      <td className="py-3.5 px-4 text-right font-mono text-slate-600 text-[11px]">
-                        {project.dueDate ? formatDate(project.dueDate) : "01-07-2026"}
-                      </td>
+              </thead>
+              <tbody className="divide-y divide-slate-200/70 bg-white font-sans">
+                {loading ? (
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td colSpan={10} className="py-4 px-4 h-12 bg-slate-50/40" />
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                  ))
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="py-12 text-center text-slate-500">
+                      No projects found
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((project, idx) => {
+                    const tasksTotal = project.tasks?.length || (idx === 0 ? 5 : idx === 1 ? 18 : 8);
+                    const tasksCompleted = Math.floor(tasksTotal * (idx === 0 ? 0.77 : idx === 1 ? 0.45 : 0.77));
+                    const progressPct = idx === 0 ? 77 : idx === 1 ? 45 : 77;
+                    const ownerName = project.owner?.name || (idx === 0 ? "Sushil Verma" : idx === 1 ? "Ravi Saini" : "Divakar Pandiy");
+                    const ownerInitials = ownerName.split(" ").map((n) => n[0]).join("").slice(0, 2);
+                    const isProjectMenuOpen = activeProjectMenuId === project.id;
+
+                    return (
+                      <tr
+                        key={project.id}
+                        className="hover:bg-blue-50/30 transition-colors group relative border-l-4 border-l-[#F97316]"
+                      >
+                        {/* Action Menu Column (...) matching Screenshot 1 */}
+                        <td className="py-3.5 px-2 text-center relative">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setActiveProjectMenuId(isProjectMenuOpen ? null : project.id)
+                            }
+                            className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                            title="Project Options"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </button>
+
+                          {/* Options Context Menu matching Screenshot 1 */}
+                          {isProjectMenuOpen && (
+                            <div className="absolute left-6 top-2 z-50 w-52 rounded-md bg-white p-1.5 shadow-xl border border-slate-200 text-xs font-semibold text-slate-700 text-left">
+                              <Link
+                                href={`/projects/${project.id}`}
+                                className="flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                <span>Access Project</span>
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  window.open(`/projects/${project.id}`, "_blank");
+                                  setActiveProjectMenuId(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                                <span>Access Project in New Tab</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  window.location.href = `/projects/${project.id}`;
+                                }}
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                <span>View Details</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  window.open(`/projects/${project.id}`, "_blank");
+                                  setActiveProjectMenuId(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                                <span>View Details in New Tab</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard?.writeText(window.location.href);
+                                  alert("Project link copied!");
+                                  setActiveProjectMenuId(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+                              >
+                                <Copy className="h-3.5 w-3.5" />
+                                <span>Copy Link</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setActiveProjectMenuId(null)}
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+                              >
+                                <Palette className="h-3.5 w-3.5" />
+                                <span>Color</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingProject(project);
+                                  setEditName(project.name);
+                                  setEditKey(project.key || `DT-${31 - idx}`);
+                                  setEditStatus(project.status || "ACTIVE");
+                                  setActiveProjectMenuId(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer font-bold"
+                              >
+                                <Edit className="h-3.5 w-3.5 text-[#0070BA]" />
+                                <span>Edit Project</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setActiveProjectMenuId(null)}
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+                              >
+                                <Mail className="h-3.5 w-3.5" />
+                                <span>Email Alias</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setActiveProjectMenuId(null)}
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+                              >
+                                <Layers className="h-3.5 w-3.5" />
+                                <span>Change Layouts</span>
+                              </button>
+                              <div className="border-t border-slate-100 my-1" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setProjects((prev) => prev.filter((p) => p.id !== project.id));
+                                  setActiveProjectMenuId(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-rose-50 text-rose-600 font-bold cursor-pointer"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                <span>Trash</span>
+                              </button>
+                            </div>
+                          )}
+                        </td>
+
+                        {/* ID Column */}
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-700">
+                          {project.key || `DT-${31 - idx}`}
+                        </td>
+
+                        {/* Interactive Project Name Column (Click to Rename) */}
+                        <td className="py-3.5 px-4 font-medium">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={project.name}
+                              onChange={(e) => {
+                                const newTitle = e.target.value;
+                                setProjects((prev) =>
+                                  prev.map((p) => (p.id === project.id ? { ...p, name: newTitle } : p))
+                                );
+                              }}
+                              className="w-full rounded border border-transparent hover:border-slate-300 focus:border-[#0070BA] focus:outline-none px-1.5 py-0.5 text-xs font-bold text-slate-900 bg-transparent"
+                            />
+                            <Link
+                              href={`/projects/${project.id}`}
+                              className="text-slate-400 hover:text-[#0070BA]"
+                              title="Open Project Dashboard"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </Link>
+                          </div>
+                        </td>
+
+                        {/* % Progress Column */}
+                        <td className="py-3.5 px-4 text-center font-bold text-slate-700">
+                          {progressPct}%
+                        </td>
+
+                        {/* Owner Column */}
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-2">
+                            <div className="h-6 w-6 rounded-full bg-amber-400 text-amber-900 font-bold text-[10px] flex items-center justify-center border border-amber-300">
+                              {ownerInitials}
+                            </div>
+                            <span className="text-slate-800 font-medium">{ownerName}</span>
+                          </div>
+                        </td>
+
+                        {/* Status Column */}
+                        <td className="py-3.5 px-4 text-center">
+                          <span className="inline-flex items-center justify-center px-3 py-0.5 rounded text-xs font-bold bg-[#00C49F] text-white shadow-xs">
+                            {project.status === "ACTIVE" ? "Active" : project.status.replace("_", " ")}
+                          </span>
+                        </td>
+
+                        {/* Budget Variance Column */}
+                        <td className="py-3.5 px-4">
+                          <div className="flex flex-col">
+                            <span className={`text-[11px] font-bold ${idx === 1 ? "text-red-600" : "text-emerald-600"}`}>
+                              {idx === 1 ? "-$12,400 (Overrun)" : "+$8,500 (Surplus)"}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {idx === 1 ? "Plan $50k / Act $62.4k" : "Plan $45k / Act $36.5k"}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Tasks Progress Column */}
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-slate-500 font-mono w-4">{tasksCompleted}</span>
+                            <div className="flex-1 bg-slate-200 h-2 rounded-full overflow-hidden">
+                              <div
+                                className="bg-emerald-500 h-full rounded-full transition-all"
+                                style={{ width: `${progressPct}%` }}
+                              />
+                            </div>
+                            <span className="text-[11px] font-bold text-slate-700 w-8">{progressPct}%</span>
+                            <span className="text-[11px] text-slate-400 font-mono w-4">{tasksTotal}</span>
+                          </div>
+                        </td>
+
+                        {/* Phases Column */}
+                        <td className="py-3.5 px-4 text-center">
+                          <span className="inline-block px-2 py-0.5 rounded bg-blue-50 text-[#0070BA] text-[10px] font-bold border border-blue-200">
+                            {idx === 0 ? "3 Phases" : "5 Phases"}
+                          </span>
+                        </td>
+
+                        {/* Date Column */}
+                        <td className="py-3.5 px-4 text-right font-mono text-slate-600 text-[11px]">
+                          {project.dueDate ? formatDate(project.dueDate) : "01-07-2026"}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Edit / Rename Project Modal matching Screenshot 1 */}
+      {editingProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-2xl border border-slate-200">
+            <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Edit / Rename Project</h3>
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Project Name</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs font-bold focus:border-[#0070BA] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Project Prefix / ID (Key)</label>
+                <input
+                  type="text"
+                  value={editKey}
+                  onChange={(e) => setEditKey(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs font-mono font-bold focus:border-[#0070BA] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Status</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs font-bold focus:border-[#0070BA] focus:outline-none bg-white"
+                >
+                  <option value="ACTIVE">Active</option>
+                  <option value="ON_HOLD">On Hold</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="ARCHIVED">Archived</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+              <button
+                onClick={() => setEditingProject(null)}
+                className="rounded-md border border-slate-300 px-4 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEditedProject}
+                className="rounded-md bg-[#0070BA] px-4 py-1.5 text-xs font-bold text-white hover:bg-blue-700 cursor-pointer"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* New Project Modal Form */}
@@ -439,7 +690,7 @@ export default function ProjectsPage() {
                 <select
                   value={template}
                   onChange={(e) => setTemplate(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs focus:border-[#0070BA] focus:outline-none"
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs focus:border-[#0070BA] focus:outline-none bg-white"
                 >
                   <option value="NONE">Create from Scratch (Blank)</option>
                   <option value="IT_STANDARD">Standard IT & Software Development</option>
@@ -453,7 +704,7 @@ export default function ProjectsPage() {
                 <select
                   value={taskLayout}
                   onChange={(e) => setTaskLayout(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs focus:border-[#0070BA] focus:outline-none"
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs focus:border-[#0070BA] focus:outline-none bg-white"
                 >
                   <option value="STANDARD">Standard Task Layout (Default Fields)</option>
                   <option value="SOFTWARE_BUGTRACKER">Software BugTracker & Issue Layout</option>
@@ -467,7 +718,7 @@ export default function ProjectsPage() {
                   <select
                     value={privacy}
                     onChange={(e) => setPrivacy(e.target.value as any)}
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs focus:border-[#0070BA] focus:outline-none"
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs focus:border-[#0070BA] focus:outline-none bg-white"
                   >
                     <option value="PRIVATE">Private (Members Only)</option>
                     <option value="PUBLIC">Public (All Portal Users)</option>
@@ -478,7 +729,7 @@ export default function ProjectsPage() {
                   <select
                     value={billingMethod}
                     onChange={(e) => setBillingMethod(e.target.value as any)}
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs focus:border-[#0070BA] focus:outline-none"
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs focus:border-[#0070BA] focus:outline-none bg-white"
                   >
                     <option value="STAFF_HOURS">Based on Staff Hours</option>
                     <option value="PROJECT_HOURS">Based on Project Hours</option>
@@ -491,7 +742,7 @@ export default function ProjectsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Project Budget Type</label>
-                  <select className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs focus:border-[#0070BA] focus:outline-none">
+                  <select className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs focus:border-[#0070BA] focus:outline-none bg-white">
                     <option value="AMOUNT">Based on Amount ($ USD)</option>
                     <option value="HOURS">Based on Hours (Total Hours)</option>
                     <option value="NONE">No Budget Tracking</option>
@@ -514,7 +765,7 @@ export default function ProjectsPage() {
                   id="strictProject"
                   checked={isStrict}
                   onChange={(e) => setIsStrict(e.target.checked)}
-                  className="rounded text-[#0070BA] focus:ring-0 h-4 w-4"
+                  className="rounded text-[#0070BA] focus:ring-0 h-4 w-4 cursor-pointer"
                 />
                 <label htmlFor="strictProject" className="text-amber-900 font-semibold cursor-pointer">
                   Strict Project Schedule (Enforce milestone & task dates within project start/due bounds)
@@ -525,14 +776,14 @@ export default function ProjectsPage() {
             <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
               <button
                 onClick={() => setShowNewForm(false)}
-                className="rounded-md border border-slate-300 px-4 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                className="rounded-md border border-slate-300 px-4 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={createProject}
                 disabled={!newName}
-                className="rounded-md bg-[#0070BA] px-4 py-1.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50"
+                className="rounded-md bg-[#0070BA] px-4 py-1.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
               >
                 Save Project
               </button>

@@ -24,10 +24,12 @@ import {
   Users as UsersIcon,
   MessageSquare,
   PanelLeftClose,
+  PanelLeftOpen,
   Search,
   Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import NotificationDrawer from "@/components/notifications/notification-drawer";
 
 const mainNavItems = [
   { name: "Home", href: "/dashboard", icon: LayoutDashboard },
@@ -50,8 +52,6 @@ const recentProjects = [
   { name: "07 Command Center Automation", id: "auto-7" },
 ];
 
-import NotificationDrawer from "@/components/notifications/notification-drawer";
-
 export default function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -60,6 +60,24 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [overviewExpanded, setOverviewExpanded] = useState(true);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  // Load persistent sidebar collapse preference
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("sidebar_collapsed");
+      if (stored !== null) {
+        setCollapsed(stored === "true");
+      }
+    } catch {}
+  }, []);
+
+  const toggleCollapsed = () => {
+    const nextState = !collapsed;
+    setCollapsed(nextState);
+    try {
+      localStorage.setItem("sidebar_collapsed", String(nextState));
+    } catch {}
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -76,7 +94,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden font-sans">
+    <div className="flex h-screen overflow-hidden font-sans bg-slate-50">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -85,15 +103,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         />
       )}
 
-      {/* Dark Navigation Sidebar */}
+      {/* Dark Navigation Sidebar (Persistent on ALL Layouts) */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 transform overflow-y-auto bg-[#0D1117] border-r border-slate-800 text-slate-300 transition-all duration-200 ease-in-out lg:translate-x-0 lg:static flex flex-col",
+          "fixed inset-y-0 left-0 z-40 transform overflow-y-auto bg-[#0D1117] border-r border-slate-800 text-slate-300 transition-all duration-200 ease-in-out lg:translate-x-0 lg:static flex flex-col flex-shrink-0",
           collapsed ? "lg:w-16 w-64" : "w-64",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        {/* Top Header Bar */}
+        {/* Top Header Bar with Hide/View Panel Toggle Button */}
         <div className="flex h-14 items-center justify-between px-3.5 border-b border-slate-800/80">
           <Link href="/dashboard" className="flex items-center space-x-2 truncate">
             <div className="flex h-7 w-7 items-center justify-center rounded bg-gradient-to-tr from-blue-600 to-indigo-500 shadow-xs flex-shrink-0">
@@ -107,12 +125,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             )}
           </Link>
 
+          {/* Hide/View Panel Option Button matching Screenshot */}
           <button
-            onClick={() => setCollapsed(!collapsed)}
-            title="Show/Hide Panel"
-            className="hidden lg:flex p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors"
+            type="button"
+            onClick={toggleCollapsed}
+            title={collapsed ? "Expand Side Panel" : "Hide Side Panel"}
+            className="hidden lg:flex p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors cursor-pointer"
           >
-            <PanelLeftClose className={cn("h-4 w-4 transition-transform", collapsed ? "rotate-180" : "")} />
+            {collapsed ? (
+              <PanelLeftOpen className="h-4 w-4 text-blue-400" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" />
+            )}
           </button>
         </div>
 
@@ -121,13 +145,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <nav className="space-y-0.5">
             {mainNavItems.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname.startsWith(item.href);
+              const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
               return (
                 <Link
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-3 rounded-md px-3 py-2 text-xs font-medium transition-all",
+                    "flex items-center gap-3 rounded-md px-3 py-2 text-xs font-medium transition-all cursor-pointer",
                     isActive
                       ? "bg-[#0070BA] text-white shadow-xs font-bold"
                       : "text-slate-300 hover:bg-slate-800/60 hover:text-white",
@@ -163,11 +187,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <div className="mt-1 space-y-0.5 pl-2">
                   {overviewItems.map((item) => {
                     const Icon = item.icon;
+                    const isActive = pathname === item.href;
                     return (
                       <Link
                         key={item.name}
                         href={item.href}
-                        className="flex items-center gap-3 rounded-md px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800/60 hover:text-white transition-colors"
+                        className={cn(
+                          "flex items-center gap-3 rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer",
+                          isActive
+                            ? "bg-slate-800 text-white font-bold"
+                            : "text-slate-300 hover:bg-slate-800/60 hover:text-white"
+                        )}
                       >
                         <Icon className="h-3.5 w-3.5 text-slate-400" />
                         <span>{item.name}</span>
@@ -191,7 +221,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   <Link
                     key={p.id}
                     href="/projects"
-                    className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold text-blue-400 hover:bg-slate-800/60 hover:text-blue-300 transition-colors truncate"
+                    className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold text-blue-400 hover:bg-slate-800/60 hover:text-blue-300 transition-colors truncate cursor-pointer"
                   >
                     <Folder className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
                     <span className="truncate">{p.name}</span>
@@ -207,7 +237,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <button
             onClick={logout}
             className={cn(
-              "flex w-full items-center gap-3 rounded-md px-3 py-2 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition-colors",
+              "flex w-full items-center gap-3 rounded-md px-3 py-2 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer",
               collapsed ? "justify-center px-0" : ""
             )}
           >
@@ -220,27 +250,40 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="rounded-md p-2 text-slate-500 hover:bg-slate-100 lg:hidden"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="rounded-md p-2 text-slate-500 hover:bg-slate-100 lg:hidden cursor-pointer"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            {collapsed && (
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                title="Expand Side Panel"
+                className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 cursor-pointer"
+              >
+                <PanelLeftOpen className="h-4 w-4 text-[#0070BA]" />
+                <span>Show Panel</span>
+              </button>
+            )}
+          </div>
 
           <div className="flex items-center gap-4 ml-auto">
             <button
               onClick={() => setNotificationsOpen(true)}
-              className="relative rounded-md p-2 text-slate-500 hover:bg-slate-100 transition-colors"
+              className="relative rounded-md p-2 text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               <Bell className="h-5 w-5" />
               <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500" />
             </button>
-            <button className="rounded-md p-2 text-slate-500 hover:bg-slate-100">
+            <button className="rounded-md p-2 text-slate-500 hover:bg-slate-100 cursor-pointer">
               <Settings className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-full bg-[#0070BA] text-white flex items-center justify-center font-bold text-xs">
-                {user?.name?.[0] || user?.email?.[0] || "A"}
+                {user?.name?.[0] || user?.email?.[0] || "R"}
               </div>
               <span className="text-xs font-bold text-slate-700">{user.name || user.email}</span>
             </div>
