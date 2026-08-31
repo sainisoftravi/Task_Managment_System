@@ -54,9 +54,9 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
       title: "01 Jindal site incharge - Arun primary - Senthil secondary",
       owner: "Unassigned",
       status: "not yet Started",
-      startDate: "",
-      dueDate: "",
-      overdueText: "",
+      startDate: "2025-12-20T09:00",
+      dueDate: "2025-12-20T11:00",
+      overdueText: "(254 day(s) and 7 hour)",
       duration: "02:00 hrs",
       priority: "! Medium",
       pct: 0,
@@ -67,10 +67,10 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
       title: "02 Project Master Excel",
       owner: "Ravi Saini",
       status: "not yet Started",
-      startDate: "22-12-2025 07:00 PM",
-      dueDate: "23-12-2025 11:00 AM",
+      startDate: "2025-12-22T19:00",
+      dueDate: "2025-12-23T11:00",
       overdueText: "(178 day(s) and 10 hour)",
-      duration: "01:00 hrs",
+      duration: "16:00 hrs",
       priority: "! Low",
       pct: 0,
     },
@@ -80,8 +80,8 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
       title: "01 Digital Twin Support at Client Side",
       owner: "amin ibrahim",
       status: "in QA",
-      startDate: "18-01-2026 10:00 AM",
-      dueDate: "22-01-2026 07:00 PM",
+      startDate: "2026-01-18T10:00",
+      dueDate: "2026-01-22T19:00",
       overdueText: "(156 day(s) and 3 hour)",
       duration: "41:00 hrs",
       priority: "! None",
@@ -93,9 +93,9 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
       title: "Concurrent User Load Test for P...",
       owner: "kannadas A",
       status: "In Review",
-      startDate: "",
-      dueDate: "",
-      overdueText: "",
+      startDate: "2026-02-01T09:00",
+      dueDate: "2026-02-01T11:00",
+      overdueText: "(211 day(s) and 7 hour)",
       duration: "02:00 hrs",
       priority: "! High",
       pct: 95,
@@ -106,9 +106,9 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
       title: "02 JWIL Chennai - 2 parts - post at 2 locati...",
       owner: "Unassigned",
       status: "In Review",
-      startDate: "",
-      dueDate: "",
-      overdueText: "",
+      startDate: "2026-02-05T10:00",
+      dueDate: "2026-02-05T11:00",
+      overdueText: "(207 day(s) and 7 hour)",
       duration: "01:00 hrs",
       priority: "! None",
       pct: 0,
@@ -124,9 +124,9 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
         title: t.title,
         owner: t.assignee?.name || "Unassigned",
         status: t.status || "not yet Started",
-        startDate: t.startDate ? formatDate(t.startDate) : "",
-        dueDate: t.dueDate ? formatDate(t.dueDate) : "",
-        overdueText: "",
+        startDate: t.startDate ? parseToDateTimeInput(t.startDate) : "2025-12-22T19:00",
+        dueDate: t.dueDate ? parseToDateTimeInput(t.dueDate) : "2025-12-23T11:00",
+        overdueText: "(178 day(s) and 10 hour)",
         duration: "02:00 hrs",
         priority: t.priority ? `! ${t.priority}` : "! None",
         pct: (t as any).pct ?? 0,
@@ -144,9 +144,9 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
           title: t.title,
           owner: t.assignee?.name || "Unassigned",
           status: t.status || "not yet Started",
-          startDate: t.startDate ? formatDate(t.startDate) : "",
-          dueDate: t.dueDate ? formatDate(t.dueDate) : "",
-          overdueText: "",
+          startDate: t.startDate ? parseToDateTimeInput(t.startDate) : "2025-12-22T19:00",
+          dueDate: t.dueDate ? parseToDateTimeInput(t.dueDate) : "2025-12-23T11:00",
+          overdueText: "(178 day(s) and 10 hour)",
           duration: "02:00 hrs",
           priority: t.priority ? `! ${t.priority}` : "! None",
           pct: (t as any).pct ?? 0,
@@ -155,13 +155,87 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
     }
   }, [tasks]);
 
+  function parseToDateTimeInput(dateStr: string) {
+    if (!dateStr) return "2025-12-22T19:00";
+    if (dateStr.includes("T")) return dateStr;
+    if (dateStr.includes("-") && dateStr.includes(":")) {
+      const parts = dateStr.split(" ");
+      if (parts.length >= 2) {
+        const [d, m, y] = parts[0].split("-");
+        let time = parts[1];
+        if (parts[2] === "PM") {
+          const [h, min] = time.split(":");
+          time = `${(parseInt(h) % 12) + 12}:${min}`;
+        }
+        return `${y}-${m}-${d}T${time}`;
+      }
+    }
+    return "2025-12-22T19:00";
+  }
+
+  function formatDisplayDateTime(isoStr: string) {
+    if (!isoStr) return "—";
+    try {
+      const d = new Date(isoStr);
+      if (isNaN(d.getTime())) return isoStr;
+      const day = String(d.getDate()).padStart(2, "0");
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const year = d.getFullYear();
+      let hours = d.getHours();
+      const ampm = hours >= 12 ? "PM" : "AM";
+      hours = hours % 12 || 12;
+      const mins = String(d.getMinutes()).padStart(2, "0");
+      return `${day}-${month}-${year} ${String(hours).padStart(2, "0")}:${mins} ${ampm}`;
+    } catch {
+      return isoStr;
+    }
+  }
+
+  // Auto calculate Duration and Overdue text from Start and Due dates
+  const calculateTaskDates = (startIso: string, dueIso: string) => {
+    let computedDuration = "01:00 hrs";
+    let computedOverdue = "";
+
+    try {
+      const start = new Date(startIso);
+      const due = new Date(dueIso);
+
+      if (!isNaN(start.getTime()) && !isNaN(due.getTime())) {
+        const diffMs = due.getTime() - start.getTime();
+        if (diffMs > 0) {
+          const totalHrs = Math.floor(diffMs / (1000 * 60 * 60));
+          computedDuration = `${String(totalHrs).padStart(2, "0")}:00 hrs`;
+        }
+
+        // Calculate Overdue / Days counter
+        const now = new Date();
+        const overdueMs = now.getTime() - due.getTime();
+        if (overdueMs > 0) {
+          const days = Math.floor(overdueMs / (1000 * 60 * 60 * 24));
+          const hours = Math.floor((overdueMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          computedOverdue = `(${days} day(s) and ${hours} hour)`;
+        }
+      }
+    } catch {}
+
+    return { duration: computedDuration, overdueText: computedOverdue };
+  };
+
   // Handler for updating task inline or from drawer
   const handleUpdateTask = (updatedTask: any) => {
+    // Re-calculate dates & duration if startDate or dueDate changed
+    const dateCalcs = calculateTaskDates(updatedTask.startDate, updatedTask.dueDate);
+    const finalTask = {
+      ...updatedTask,
+      duration: updatedTask.duration || dateCalcs.duration,
+      overdueText: dateCalcs.overdueText || updatedTask.overdueText || "",
+    };
+
     setLocalTasks((prev) =>
-      prev.map((t) => (t.id === updatedTask.id ? { ...t, ...updatedTask } : t))
+      prev.map((t) => (t.id === finalTask.id ? { ...t, ...finalTask } : t))
     );
-    if (selectedDrawerTask && selectedDrawerTask.id === updatedTask.id) {
-      setSelectedDrawerTask({ ...selectedDrawerTask, ...updatedTask });
+    if (selectedDrawerTask && selectedDrawerTask.id === finalTask.id) {
+      setSelectedDrawerTask({ ...selectedDrawerTask, ...finalTask });
     }
   };
 
@@ -174,10 +248,10 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
       title: "New Interactive Task Item",
       owner: "Ravi Saini",
       status: "not yet Started",
-      startDate: new Date().toLocaleDateString(),
-      dueDate: new Date(Date.now() + 86400000 * 3).toLocaleDateString(),
-      overdueText: "",
-      duration: "04:00 hrs",
+      startDate: "2025-12-22T19:00",
+      dueDate: "2025-12-23T11:00",
+      overdueText: "(178 day(s) and 10 hour)",
+      duration: "16:00 hrs",
       priority: "! Medium",
       pct: 0,
     };
@@ -403,7 +477,7 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                 </th>
                 <th className="py-2.5 px-3 w-36">Owner</th>
                 <th className="py-2.5 px-3 w-32 text-center">Status</th>
-                <th className="py-2.5 px-3 text-center w-36">Start Date</th>
+                <th className="py-2.5 px-3 text-center w-48">Start Date</th>
                 <th className="py-2.5 px-3 text-center w-56">Due Date</th>
                 <th className="py-2.5 px-3 text-center w-24">Duration</th>
                 <th className="py-2.5 px-3 text-center w-28">Priority</th>
@@ -478,42 +552,66 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
                       </select>
                     </td>
 
-                    {/* Start Date */}
-                    <td className="py-2.5 px-3 text-center font-mono text-slate-600">
-                      <input
-                        type="text"
-                        value={task.startDate || ""}
-                        onChange={(e) => handleUpdateTask({ ...task, startDate: e.target.value })}
-                        placeholder="—"
-                        className="w-full text-center border border-transparent hover:border-slate-300 rounded text-xs bg-transparent focus:border-[#0070BA] focus:outline-none"
-                      />
-                    </td>
-
-                    {/* Due Date */}
+                    {/* Start Date Picker Calendar Cell */}
                     <td className="py-2.5 px-3 text-center font-mono text-slate-600">
                       <div className="flex flex-col items-center">
                         <input
-                          type="text"
+                          type="datetime-local"
+                          value={task.startDate || ""}
+                          onChange={(e) => {
+                            const newStart = e.target.value;
+                            const calcs = calculateTaskDates(newStart, task.dueDate);
+                            handleUpdateTask({
+                              ...task,
+                              startDate: newStart,
+                              duration: calcs.duration,
+                              overdueText: calcs.overdueText,
+                            });
+                          }}
+                          className="w-full text-center border border-slate-200 hover:border-[#0070BA] rounded text-[11px] font-semibold bg-white py-1 px-1 focus:border-[#0070BA] focus:outline-none cursor-pointer"
+                        />
+                        <span className="text-[10px] text-slate-500 font-mono mt-0.5">
+                          {formatDisplayDateTime(task.startDate)}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Due Date Picker Calendar Cell */}
+                    <td className="py-2.5 px-3 text-center font-mono text-slate-600">
+                      <div className="flex flex-col items-center">
+                        <input
+                          type="datetime-local"
                           value={task.dueDate || ""}
-                          onChange={(e) => handleUpdateTask({ ...task, dueDate: e.target.value })}
-                          placeholder="—"
-                          className={`w-full text-center border border-transparent hover:border-slate-300 rounded text-xs bg-transparent focus:border-[#0070BA] focus:outline-none ${
-                            isOverdue ? "text-red-500 font-bold" : "text-slate-600"
+                          onChange={(e) => {
+                            const newDue = e.target.value;
+                            const calcs = calculateTaskDates(task.startDate, newDue);
+                            handleUpdateTask({
+                              ...task,
+                              dueDate: newDue,
+                              duration: calcs.duration,
+                              overdueText: calcs.overdueText,
+                            });
+                          }}
+                          className={`w-full text-center border border-slate-200 hover:border-[#0070BA] rounded text-[11px] font-semibold bg-white py-1 px-1 focus:border-[#0070BA] focus:outline-none cursor-pointer ${
+                            isOverdue ? "text-red-500 font-bold border-red-300" : "text-slate-600"
                           }`}
                         />
-                        {isOverdue && (
+                        <span className={`text-[10px] mt-0.5 ${isOverdue ? "text-red-500 font-bold" : "text-slate-500"}`}>
+                          {formatDisplayDateTime(task.dueDate)}
+                        </span>
+                        {task.overdueText && (
                           <span className="text-[10px] text-red-500 font-semibold">{task.overdueText}</span>
                         )}
                       </div>
                     </td>
 
-                    {/* Duration */}
-                    <td className="py-2.5 px-3 text-center font-mono text-slate-600">
+                    {/* Auto-Calculated Duration */}
+                    <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-800">
                       <input
                         type="text"
                         value={task.duration}
                         onChange={(e) => handleUpdateTask({ ...task, duration: e.target.value })}
-                        className="w-full text-center border border-transparent hover:border-slate-300 rounded text-xs bg-transparent focus:border-[#0070BA] focus:outline-none"
+                        className="w-full text-center border border-transparent hover:border-slate-300 rounded text-xs bg-transparent focus:border-[#0070BA] focus:outline-none font-bold"
                       />
                     </td>
 

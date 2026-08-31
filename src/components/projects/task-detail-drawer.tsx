@@ -36,7 +36,8 @@ import {
   Pause,
   Square,
   Send,
-  UserCheck
+  UserCheck,
+  Check
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
@@ -56,6 +57,7 @@ export default function TaskDetailDrawer({ task, isOpen, onClose, onUpdateTask }
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerPaused, setTimerPaused] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(1845); // 00:30:45
+  const [showCommentSuccessToast, setShowCommentSuccessToast] = useState(false);
 
   const formatTimer = (totalSec: number) => {
     const hrs = Math.floor(totalSec / 3600);
@@ -104,10 +106,23 @@ export default function TaskDetailDrawer({ task, isOpen, onClose, onUpdateTask }
       setDuration(task.duration || "01:00 hrs");
       setCompletionPct(task.pct ?? task.completionPct ?? 0);
       setDescriptionText(task.description || "");
+
+      if (task.commentsList && task.commentsList.length > 0) {
+        setCommentsList(task.commentsList);
+      } else {
+        // Load stored comments from localStorage if available
+        try {
+          const stored = localStorage.getItem(`task_comments_${task.id || task.key}`);
+          if (stored) {
+            setCommentsList(JSON.parse(stored));
+          }
+        } catch {}
+      }
     }
   }, [task]);
 
   function parseToDateTimeInput(dateStr: string) {
+    if (!dateStr) return "2025-12-22T19:00";
     if (dateStr.includes("T")) return dateStr;
     if (dateStr.includes("-") && dateStr.includes(":")) {
       const parts = dateStr.split(" ");
@@ -124,30 +139,13 @@ export default function TaskDetailDrawer({ task, isOpen, onClose, onUpdateTask }
     return "2025-12-22T19:00";
   }
 
-  function formatDisplayDateTime(isoStr: string) {
-    if (!isoStr) return "";
-    try {
-      const d = new Date(isoStr);
-      if (isNaN(d.getTime())) return isoStr;
-      const day = String(d.getDate()).padStart(2, "0");
-      const month = String(d.getMonth() + 1).padStart(2, "0");
-      const year = d.getFullYear();
-      let hours = d.getHours();
-      const ampm = hours >= 12 ? "PM" : "AM";
-      hours = hours % 12 || 12;
-      const mins = String(d.getMinutes()).padStart(2, "0");
-      return `${day}-${month}-${year} ${String(hours).padStart(2, "0")}:${mins} ${ampm}`;
-    } catch {
-      return isoStr;
-    }
-  }
-
   if (!isOpen || !task) return null;
 
   const handleFieldChange = (field: string, value: any) => {
     const updated = {
       ...task,
       [field]: value,
+      commentsList,
     };
 
     if (field === "owner") setOwner(value);
@@ -205,28 +203,68 @@ export default function TaskDetailDrawer({ task, isOpen, onClose, onUpdateTask }
 
   const handleAddComment = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!commentText.trim()) return;
+    const textToAdd = commentText.trim();
+    if (!textToAdd) return;
 
+    const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const newComment = {
       id: String(Date.now()),
       author: owner || "Ravi Saini",
-      time: "Just now",
-      text: commentText.trim(),
+      time: `Today at ${nowStr}`,
+      text: textToAdd,
     };
 
-    setCommentsList((prev) => [newComment, ...prev]);
+    const updatedComments = [newComment, ...commentsList];
+    setCommentsList(updatedComments);
     setCommentText("");
     setActiveTab("comments");
+    setShowCommentSuccessToast(true);
+    setTimeout(() => setShowCommentSuccessToast(false), 3000);
+
+    // Persist to localStorage for persistence across reloads
+    try {
+      localStorage.setItem(`task_comments_${task.id || task.key}`, JSON.stringify(updatedComments));
+    } catch {}
+
+    const updatedTask = {
+      ...task,
+      owner,
+      status,
+      commentsList: updatedComments,
+      commentsCount: updatedComments.length,
+    };
+
+    if (onUpdateTask) {
+      onUpdateTask(updatedTask);
+    }
+
+    // Persist comment to backend database API if task.id exists
+    if (task.id && !task.id.startsWith("1P1-")) {
+      fetch(`/api/tasks/${task.id}/activities`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "task.commented",
+          text: textToAdd,
+          details: JSON.stringify({ author: owner, text: textToAdd }),
+        }),
+      }).catch(() => {});
+    }
 
     setActivities((prev) => [
       {
         id: String(Date.now()),
         user: owner || "Ravi Saini",
-        action: "added a comment",
+        action: `added comment: "${textToAdd.slice(0, 30)}..."`,
         time: "Just now",
       },
       ...prev,
     ]);
+  };
+
+  // Rich Text Formatting helper
+  const applyTextFormat = (prefix: string, suffix: string) => {
+    setCommentText((prev) => `${prev}${prefix}formatted text${suffix}`);
   };
 
   const currentOwnerObj = availableOwners.find((o) => o.name === owner) || availableOwners[0];
@@ -252,8 +290,9 @@ export default function TaskDetailDrawer({ task, isOpen, onClose, onUpdateTask }
               <span>{formatTimer(timerSeconds)}</span>
               {!timerRunning ? (
                 <button
+                  type="button"
                   onClick={() => { setTimerRunning(true); setTimerPaused(false); }}
-                  className="p-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                  className="p-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
                   title="Start Live Timer"
                 >
                   <Play className="h-3 w-3 fill-current" />
@@ -261,18 +300,20 @@ export default function TaskDetailDrawer({ task, isOpen, onClose, onUpdateTask }
               ) : (
                 <div className="flex items-center gap-1">
                   <button
+                    type="button"
                     onClick={() => setTimerPaused(!timerPaused)}
-                    className="p-1 rounded bg-amber-500 text-white hover:bg-amber-600"
+                    className="p-1 rounded bg-amber-500 text-white hover:bg-amber-600 cursor-pointer"
                     title={timerPaused ? "Resume Timer" : "Pause Timer"}
                   >
                     {timerPaused ? <Play className="h-3 w-3 fill-current" /> : <Pause className="h-3 w-3 fill-current" />}
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       setTimerRunning(false);
                       alert(`Timer stopped! Recorded ${formatTimer(timerSeconds)} to project timesheet.`);
                     }}
-                    className="p-1 rounded bg-rose-600 text-white hover:bg-rose-700"
+                    className="p-1 rounded bg-rose-600 text-white hover:bg-rose-700 cursor-pointer"
                     title="Stop Timer and Log Effort"
                   >
                     <Square className="h-3 w-3 fill-current" />
@@ -281,7 +322,7 @@ export default function TaskDetailDrawer({ task, isOpen, onClose, onUpdateTask }
               )}
             </div>
 
-            <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-700">
+            <button type="button" onClick={onClose} className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -379,7 +420,7 @@ export default function TaskDetailDrawer({ task, isOpen, onClose, onUpdateTask }
                         e.stopPropagation();
                         handleFieldChange("owner", "Unassigned");
                       }}
-                      className="h-3.5 w-3.5 text-slate-400 hover:text-slate-700"
+                      className="h-3.5 w-3.5 text-slate-400 hover:text-slate-700 cursor-pointer"
                     />
                   </div>
 
@@ -424,7 +465,7 @@ export default function TaskDetailDrawer({ task, isOpen, onClose, onUpdateTask }
                   <select
                     value={status}
                     onChange={(e) => handleFieldChange("status", e.target.value)}
-                    className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-800 focus:border-[#0070BA] focus:outline-none bg-white"
+                    className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-800 focus:border-[#0070BA] focus:outline-none bg-white cursor-pointer"
                   >
                     <option value="not yet Started">not yet Started</option>
                     <option value="In Progress">In Progress</option>
@@ -465,7 +506,7 @@ export default function TaskDetailDrawer({ task, isOpen, onClose, onUpdateTask }
                   <select
                     value={reminder}
                     onChange={(e) => setReminder(e.target.value)}
-                    className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-800 focus:border-[#0070BA] focus:outline-none bg-white"
+                    className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-800 focus:border-[#0070BA] focus:outline-none bg-white cursor-pointer"
                   >
                     <option value="None">None</option>
                     <option value="On Same Day">On Same Day</option>
@@ -479,7 +520,7 @@ export default function TaskDetailDrawer({ task, isOpen, onClose, onUpdateTask }
                   <select
                     value={priority}
                     onChange={(e) => handleFieldChange("priority", e.target.value)}
-                    className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-800 focus:border-[#0070BA] focus:outline-none bg-white"
+                    className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-800 focus:border-[#0070BA] focus:outline-none bg-white cursor-pointer"
                   >
                     <option value="Low">Low</option>
                     <option value="Medium">Medium</option>
@@ -510,16 +551,18 @@ export default function TaskDetailDrawer({ task, isOpen, onClose, onUpdateTask }
           {/* Bottom Tabs Bar */}
           <div className="border-b border-slate-200 text-xs font-bold flex items-center gap-6 pt-2">
             <button
+              type="button"
               onClick={() => setActiveTab("comments")}
-              className={`pb-2 border-b-2 transition-colors ${
+              className={`pb-2 border-b-2 transition-colors cursor-pointer ${
                 activeTab === "comments" ? "border-[#0070BA] text-[#0070BA]" : "border-transparent text-slate-600 hover:text-slate-900"
               }`}
             >
               Comments ({commentsList.length})
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab("activity")}
-              className={`pb-2 border-b-2 transition-colors ${
+              className={`pb-2 border-b-2 transition-colors cursor-pointer ${
                 activeTab === "activity" ? "border-[#0070BA] text-[#0070BA]" : "border-transparent text-slate-600 hover:text-slate-900"
               }`}
             >
@@ -529,31 +572,39 @@ export default function TaskDetailDrawer({ task, isOpen, onClose, onUpdateTask }
 
           {/* Comments Rich Text Editor Tab */}
           {activeTab === "comments" && (
-            <div className="rounded-md border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+            <form onSubmit={handleAddComment} className="rounded-md border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+              {/* Success Notification Banner */}
+              {showCommentSuccessToast && (
+                <div className="flex items-center gap-2 p-2 rounded bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold animate-fadeIn">
+                  <Check className="h-4 w-4 text-emerald-600" />
+                  <span>Comment posted and saved successfully!</span>
+                </div>
+              )}
+
               {/* Existing Comments List */}
-              <div className="space-y-2 mb-3 max-h-48 overflow-y-auto">
+              <div className="space-y-2 mb-3 max-h-56 overflow-y-auto pr-1">
                 {commentsList.map((c) => (
-                  <div key={c.id} className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs">
+                  <div key={c.id} className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs shadow-2xs">
                     <div className="flex justify-between font-bold text-slate-800 mb-1">
-                      <span>{c.author}</span>
+                      <span className="text-[#0070BA]">{c.author}</span>
                       <span className="text-[10px] text-slate-400 font-normal">{c.time}</span>
                     </div>
-                    <p className="text-slate-700 whitespace-pre-wrap">{c.text}</p>
+                    <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">{c.text}</p>
                   </div>
                 ))}
               </div>
 
               {/* Rich Text Toolbar */}
               <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-200 pb-2 text-slate-600">
-                <button type="button" className="p-1.5 rounded hover:bg-slate-100 font-bold"><Bold className="h-3.5 w-3.5" /></button>
-                <button type="button" className="p-1.5 rounded hover:bg-slate-100 italic"><Italic className="h-3.5 w-3.5" /></button>
-                <button type="button" className="p-1.5 rounded hover:bg-slate-100 underline"><Underline className="h-3.5 w-3.5" /></button>
-                <button type="button" className="p-1.5 rounded hover:bg-slate-100 line-through"><Strikethrough className="h-3.5 w-3.5" /></button>
+                <button type="button" onClick={() => applyTextFormat("**", "**")} className="p-1.5 rounded hover:bg-slate-100 font-bold" title="Bold"><Bold className="h-3.5 w-3.5" /></button>
+                <button type="button" onClick={() => applyTextFormat("*", "*")} className="p-1.5 rounded hover:bg-slate-100 italic" title="Italic"><Italic className="h-3.5 w-3.5" /></button>
+                <button type="button" onClick={() => applyTextFormat("_", "_")} className="p-1.5 rounded hover:bg-slate-100 underline" title="Underline"><Underline className="h-3.5 w-3.5" /></button>
+                <button type="button" onClick={() => applyTextFormat("~", "~")} className="p-1.5 rounded hover:bg-slate-100 line-through" title="Strikethrough"><Strikethrough className="h-3.5 w-3.5" /></button>
                 <span className="h-4 border-r border-slate-200 mx-1" />
-                <button type="button" className="p-1.5 rounded hover:bg-slate-100"><List className="h-3.5 w-3.5" /></button>
-                <button type="button" className="p-1.5 rounded hover:bg-slate-100"><ListOrdered className="h-3.5 w-3.5" /></button>
-                <button type="button" className="p-1.5 rounded hover:bg-slate-100"><Code className="h-3.5 w-3.5" /></button>
-                <button type="button" className="p-1.5 rounded hover:bg-slate-100"><LinkIcon className="h-3.5 w-3.5" /></button>
+                <button type="button" onClick={() => applyTextFormat("\n- ", "")} className="p-1.5 rounded hover:bg-slate-100" title="Bullet List"><List className="h-3.5 w-3.5" /></button>
+                <button type="button" onClick={() => applyTextFormat("\n1. ", "")} className="p-1.5 rounded hover:bg-slate-100" title="Numbered List"><ListOrdered className="h-3.5 w-3.5" /></button>
+                <button type="button" onClick={() => applyTextFormat("`", "`")} className="p-1.5 rounded hover:bg-slate-100" title="Code"><Code className="h-3.5 w-3.5" /></button>
+                <button type="button" onClick={() => applyTextFormat("[", "](url)")} className="p-1.5 rounded hover:bg-slate-100" title="Insert Link"><LinkIcon className="h-3.5 w-3.5" /></button>
               </div>
 
               {/* Text Area */}
@@ -562,6 +613,11 @@ export default function TaskDetailDrawer({ task, isOpen, onClose, onUpdateTask }
                 placeholder="Type your comment or update here..."
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    handleAddComment(e);
+                  }
+                }}
                 className="w-full rounded-md border border-slate-200 p-3 text-xs focus:border-[#0070BA] focus:outline-none"
               />
 
@@ -571,14 +627,14 @@ export default function TaskDetailDrawer({ task, isOpen, onClose, onUpdateTask }
                   To add Task Comment via email
                 </span>
                 <button
-                  type="button"
-                  onClick={handleAddComment}
-                  className="rounded-md bg-[#0070BA] px-5 py-2 font-bold text-white hover:bg-blue-700 shadow-xs cursor-pointer"
+                  type="submit"
+                  disabled={!commentText.trim()}
+                  className="rounded-md bg-[#0070BA] px-5 py-2 font-bold text-white hover:bg-blue-700 shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Add Comment
                 </button>
               </div>
-            </div>
+            </form>
           )}
 
           {/* Activity Stream Tab */}
