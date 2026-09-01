@@ -65,6 +65,11 @@ Below is the directory map linking every file to its exact UI page, component re
 ## 🛠️ Modular Component Hierarchy (`src/components/`)
 
 ### 1. Project & Task Views (`src/components/projects/`)
+- [`template-gallery-modal.tsx`](file:///e:/Antigravity-clie/Task&PMP-System/src/components/projects/template-gallery-modal.tsx): Step 1 Template Gallery Modal with filter tabs (*All*, *Project Templates*, *Software/IT*, *Construction*, *Pharma*), search, and Blank Project card.
+- [`new-project-form-modal.tsx`](file:///e:/Antigravity-clie/Task&PMP-System/src/components/projects/new-project-form-modal.tsx): Step 2 New Project Form Configuration Modal with required title validation, rich text editor toolbar, tag selector, roll-up accordion, module tab pills, and privacy settings.
+- [`project-detail-drawer.tsx`](file:///e:/Antigravity-clie/Task&PMP-System/src/components/projects/project-detail-drawer.tsx): Step 4 View Details side drawer displaying project ownership, timeline dates, and inbound email alias.
+- [`project-color-picker-modal.tsx`](file:///e:/Antigravity-clie/Task&PMP-System/src/components/projects/project-color-picker-modal.tsx): Step 4 Color picker palette for project accent badges.
+- [`project-layout-switcher-modal.tsx`](file:///e:/Antigravity-clie/Task&PMP-System/src/components/projects/project-layout-switcher-modal.tsx): Step 4 Change Layouts switcher modal.
 - [`task-list-view.tsx`](file:///e:/Antigravity-clie/Task&PMP-System/src/components/projects/task-list-view.tsx): Task List view with custom views popover, context action menu, column customizer dual list, add column drawer, in-module automation drawer, visual flow builder, 6-level subtask drag-and-drop reordering (`::` handle + `☑ Drop here to reorder the task.` banner), and 4-step Import Tasks wizard modal (`MPP/MPX`).
 - [`task-detail-drawer.tsx`](file:///e:/Antigravity-clie/Task&PMP-System/src/components/projects/task-detail-drawer.tsx): Task slide-out detail drawer with inline title/status editing, subtask list, time logging, followers, and comments.
 - [`wbs-view.tsx`](file:///e:/Antigravity-clie/Task&PMP-System/src/components/projects/wbs-view.tsx): Work Breakdown Structure hierarchical tree.

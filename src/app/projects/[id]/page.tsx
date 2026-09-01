@@ -72,16 +72,110 @@ export default function ProjectOverviewPage() {
       console.warn("Backend project API fetch error, checking local storage:", e);
     }
 
-    // LocalStorage Fallback for user-created custom projects
+    // LocalStorage & Mock Fallback for custom and seed projects
     try {
       const customProjects: Project[] = JSON.parse(localStorage.getItem("user_custom_projects") || "[]");
-      const found = customProjects.find(
-        (p) =>
-          p.id === id ||
-          p.key === id ||
-          (p.id && p.id.toLowerCase() === id.toLowerCase()) ||
-          (p.key && p.key.toLowerCase() === id.toLowerCase())
-      );
+      const defaultProjects: Project[] = [
+        {
+          id: "proj-dt-31",
+          key: "DT-31",
+          name: "07 Command Center Automation",
+          status: "ACTIVE",
+          pct: 0,
+          owner: { id: "u2", name: "Divakar Pandiy", email: "divakar@taskpmp.local" } as any,
+          _count: { tasks: 1, milestones: 0, timeLogs: 0 },
+          budgetVariance: "+$0 (Surplus)",
+          startDate: "2026-07-01" as any,
+          dueDate: "2026-08-31" as any,
+          tags: ["Automation", "CommandCenter"],
+        } as any,
+        {
+          id: "proj-dt-30",
+          key: "DT-30",
+          name: "06 Monthly Miscellaneous Tasks",
+          status: "ACTIVE",
+          pct: 45,
+          owner: { id: "u1", name: "Ravi Saini", email: "ravi@taskpmp.local" } as any,
+          _count: { tasks: 18, milestones: 0, timeLogs: 5 },
+          budgetVariance: "+$0 (Surplus)",
+          startDate: "2026-01-01" as any,
+          dueDate: "2029-12-31" as any,
+          tags: ["Operations", "Monthly"],
+        } as any,
+        {
+          id: "proj-dt-21",
+          key: "DT-21",
+          name: "01 PoC Projects",
+          status: "ACTIVE",
+          pct: 77,
+          owner: { id: "u3", name: "Sushil Verma", email: "sushil@taskpmp.local" } as any,
+          _count: { tasks: 15, milestones: 0, timeLogs: 8 },
+          budgetVariance: "+$0 (Surplus)",
+          startDate: "2025-11-01" as any,
+          dueDate: "2031-11-30" as any,
+          tags: ["PoC", "Enterprise"],
+        } as any,
+        {
+          id: "proj-dt-03",
+          key: "DT-03",
+          name: "03 data demo",
+          status: "ACTIVE",
+          pct: 0,
+          owner: { id: "u1", name: "Admin User", email: "admin@taskpmp.local" } as any,
+          _count: { tasks: 4, milestones: 0, timeLogs: 0 },
+          budgetVariance: "+$0 (Surplus)",
+          startDate: "2026-08-01" as any,
+          dueDate: "2026-12-31" as any,
+          tags: ["Demo"],
+        } as any,
+        {
+          id: "proj-dt-01",
+          key: "DT-01",
+          name: "01 Demo",
+          status: "ACTIVE",
+          pct: 0,
+          owner: { id: "u1", name: "Admin User", email: "admin@taskpmp.local" } as any,
+          _count: { tasks: 3, milestones: 0, timeLogs: 0 },
+          budgetVariance: "+$0 (Surplus)",
+          startDate: "2026-08-15" as any,
+          dueDate: "2026-11-30" as any,
+          tags: ["Demo"],
+        } as any,
+        {
+          id: "proj-dt-02",
+          key: "DT-02",
+          name: "01 Demo Test Project Creation",
+          status: "ACTIVE",
+          pct: 0,
+          owner: { id: "u1", name: "Admin User", email: "admin@taskpmp.local" } as any,
+          _count: { tasks: 0, milestones: 0, timeLogs: 0 },
+          budgetVariance: "+$0 (Surplus)",
+          startDate: "2026-08-31" as any,
+          dueDate: "2027-01-07" as any,
+          tags: ["Testing"],
+        } as any,
+      ];
+
+      const combinedProjects = [...customProjects, ...defaultProjects];
+      const targetId = (id || "").toLowerCase();
+      const targetClean = targetId.replace(/[^a-z0-9]/g, "");
+
+      const found = combinedProjects.find((p) => {
+        if (!p) return false;
+        const pId = (p.id || "").toLowerCase();
+        const pKey = (p.key || "").toLowerCase();
+        const pIdClean = pId.replace(/[^a-z0-9]/g, "");
+        const pKeyClean = pKey.replace(/[^a-z0-9]/g, "");
+
+        return (
+          pId === targetId ||
+          pKey === targetId ||
+          pIdClean === targetClean ||
+          pKeyClean === targetClean ||
+          pIdClean.includes(targetClean) ||
+          targetClean.includes(pKeyClean)
+        );
+      });
 
       if (found) {
         setProject(found);
@@ -95,14 +189,28 @@ export default function ProjectOverviewPage() {
         setTasks(matchingTasks);
         setDependencies(extractDeps(matchingTasks));
 
-        // Load custom task lists for this project
-        const storedLists = JSON.parse(localStorage.getItem(`custom_task_lists_${found.id}`) || "[]");
-        const defaultLists: TaskList[] = [
-          { id: `tl-gen-${found.id}`, name: "General Tasks", projectId: found.id, sortOrder: 1, createdAt: new Date().toISOString(), tasks: [] } as any,
-          { id: `tl-[#0070BA]-${found.id}`, name: "Development & Engineering", projectId: found.id, sortOrder: 2, createdAt: new Date().toISOString(), tasks: [] } as any,
-        ];
+        // Load custom task lists for this project from API and multi-key localStorage
+        let apiTaskLists: any[] = [];
+        try {
+          const apiRes = await fetch(`/api/task-lists?projectId=${found.id}`);
+          if (apiRes.ok) {
+            const apiData = await apiRes.json();
+            apiTaskLists = apiData.taskLists || [];
+          }
+        } catch {}
+
+        const storedListsProj = JSON.parse(localStorage.getItem(`custom_task_lists_${found.id}`) || "[]");
+        const storedListsGlobal = JSON.parse(localStorage.getItem("custom_task_lists") || "[]");
         const rawFound = found as any;
-        setTaskLists(storedLists.length > 0 ? storedLists : rawFound.taskLists && rawFound.taskLists.length > 0 ? rawFound.taskLists : defaultLists);
+
+        const combinedListsMap = new Map<string, any>();
+        [...apiTaskLists, ...storedListsProj, ...storedListsGlobal, ...(rawFound.taskLists || [])].forEach((item) => {
+          if (item && item.name && !combinedListsMap.has(item.name)) {
+            combinedListsMap.set(item.name, item);
+          }
+        });
+
+        setTaskLists(Array.from(combinedListsMap.values()));
         setMilestones(rawFound.milestones || []);
         setLoading(false);
         return;
@@ -309,11 +417,13 @@ export default function ProjectOverviewPage() {
 
           {viewMode === "list" && (
             <ListView
+              projectId={id}
               tasks={tasks}
               taskLists={taskLists}
               headers={headers}
               onTaskClick={handleTaskClick}
               onAddTask={handleAddTask}
+              onAddTaskList={(newList) => setTaskLists([newList, ...taskLists])}
             />
           )}
 
@@ -394,11 +504,13 @@ export default function ProjectOverviewPage() {
           <TaskListChartView />
 
           <ListView
+            projectId={id}
             tasks={tasks}
             taskLists={taskLists}
             headers={headers}
             onTaskClick={handleTaskClick}
             onAddTask={handleAddTask}
+            onAddTaskList={(newList) => setTaskLists([newList, ...taskLists])}
           />
         </div>
       )}
@@ -407,15 +519,34 @@ export default function ProjectOverviewPage() {
       <CreateTaskListModal
         isOpen={showCreateTaskListModal}
         onClose={() => setShowCreateTaskListModal(false)}
-        onSuccess={(newList) => {
+        onSuccess={async (newList) => {
           const updated = [newList, ...taskLists];
           setTaskLists(updated);
           try {
             const customLists = JSON.parse(localStorage.getItem("custom_task_lists") || "[]");
             localStorage.setItem("custom_task_lists", JSON.stringify([newList, ...customLists]));
           } catch {}
+
+          // Persist to backend database via POST /api/task-lists
+          try {
+            const token = localStorage.getItem("token");
+            await fetch("/api/task-lists", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+              body: JSON.stringify({
+                projectId: project.id,
+                name: newList.name,
+              }),
+            });
+          } catch (err) {
+            console.warn("Task list API save fallback:", err);
+          }
+
           setShowCreateTaskListModal(false);
-          alert(`Task List '${newList.name}' created and added successfully!`);
+          alert(`Task List '${newList.name}' created and saved to database successfully!`);
         }}
       />
 

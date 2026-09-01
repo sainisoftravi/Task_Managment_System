@@ -16,20 +16,20 @@ export default function CreateTaskListModal({
   onSuccess,
   milestones = [],
 }: CreateTaskListModalProps) {
-  // Mode: "NORMAL" | "TEMPLATE" | "PROJECT" matching Screenshots 1 & 2
+  // Mode: "NORMAL" | "TEMPLATE" | "PROJECT"
   const [mode, setMode] = useState<"NORMAL" | "TEMPLATE" | "PROJECT">("NORMAL");
 
-  // Form Fields matching Screenshots 1 & 2
-  const [taskListName, setTaskListName] = useState("Production");
+  // Form Fields matching Screenshot 1
+  const [taskListName, setTaskListName] = useState("01 POC TEST");
   const [selectedTemplateList, setSelectedTemplateList] = useState("Launch Checklist");
-  const [selectedProjectTemplate, setSelectedProjectTemplate] = useState("Zylker Solutions Template");
+  const [selectedProjectTemplate, setSelectedProjectTemplate] = useState("Standard Master Template");
 
-  const [relatedMilestone, setRelatedMilestone] = useState("None");
-  const [taskListFlag, setTaskListFlag] = useState<"Internal" | "External">("Internal");
-  const [tags, setTags] = useState<string[]>(["software", "taskpmp"]);
+  const [relatedPhase, setRelatedPhase] = useState("None");
+  const [taskListFlag, setTaskListFlag] = useState<"Internal" | "External" | "Public">("Internal");
+  const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
 
-  const [shiftDate, setShiftDate] = useState("2023-10-25T08:00");
+  const [shiftDate, setShiftDate] = useState("2026-09-01T08:00");
 
   if (!isOpen) return null;
 
@@ -47,21 +47,21 @@ export default function CreateTaskListModal({
   const handleSave = (addMore = false) => {
     const finalName = mode === "NORMAL" ? taskListName.trim() : selectedTemplateList;
     if (!finalName) {
-      alert("Please specify a Task List Name");
+      alert("Please enter a Task List Name");
       return;
     }
 
-    onSuccess({
+    const newList = {
       id: `tl-${Date.now()}`,
       name: finalName,
-      milestone: relatedMilestone,
+      milestone: relatedPhase,
       flag: taskListFlag,
       tags,
       shiftDate: mode !== "NORMAL" ? shiftDate : null,
       mode,
-    });
+    };
 
-    alert(`Task list '${finalName}' added successfully (${taskListFlag}).`);
+    onSuccess(newList);
 
     if (addMore) {
       setTaskListName("");
@@ -71,165 +71,132 @@ export default function CreateTaskListModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs font-sans">
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs font-sans animate-fadeIn">
       <div className="w-full max-w-lg h-full bg-white shadow-2xl border-l border-slate-200 flex flex-col justify-between overflow-hidden animate-slideInRight text-xs font-sans">
-        {/* Drawer Header matching Screenshots 1 & 2 */}
-        <div className="p-6 border-b border-slate-200 bg-white flex items-center justify-between">
-          <h2 className="text-base font-bold text-slate-900">New Task List</h2>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-700">
+        
+        {/* Header matching Screenshot 1 */}
+        <div className="p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+          <h2 className="text-base font-extrabold text-slate-900">New Task List</h2>
+          <button onClick={onClose} className="p-1 rounded text-slate-400 hover:text-slate-700">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Drawer Body matching Screenshots 1 & 2 */}
+        {/* Form Body matching Screenshot 1 */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          {/* Mode 1: NORMAL MODE (Screenshot 1) */}
+          {/* Mode 1: NORMAL MODE */}
           {mode === "NORMAL" && (
             <div>
-              <label className="block font-bold text-slate-800 mb-1">
-                Task List<span className="text-red-500">*</span>
+              <label className="block font-bold text-slate-800 mb-1.5">
+                Task List<span className="text-rose-500 font-bold">*</span>
               </label>
               <input
                 type="text"
+                placeholder="e.g. 01 POC TEST"
                 value={taskListName}
                 onChange={(e) => setTaskListName(e.target.value)}
-                className="w-full rounded border border-slate-300 p-2.5 text-xs font-semibold focus:border-orange-500 focus:outline-none"
+                className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-semibold focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/20 focus:outline-none shadow-2xs"
+                autoFocus
               />
 
-              {/* Mode Switch Links matching Screenshot 1 */}
-              <div className="flex items-center gap-3 mt-1.5 text-xs font-semibold">
-                <button
-                  type="button"
-                  onClick={() => setMode("TEMPLATE")}
-                  className="text-orange-600 hover:underline cursor-pointer"
-                >
-                  Clone from Task Template
-                </button>
+              {/* Clone links matching Screenshot 1 */}
+              <div className="flex items-center gap-3 mt-2 text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => setMode("PROJECT")}
-                  className="text-orange-600 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                  className="text-[#0066FF] hover:underline inline-flex items-center gap-1 cursor-pointer"
                 >
                   <span>Clone from a Project or Project Template</span>
-                  <Info className="h-3 w-3 text-slate-400" />
+                  <Info className="h-3.5 w-3.5 text-slate-400" />
                 </button>
               </div>
             </div>
           )}
 
-          {/* Mode 2: CLONE FROM TASK TEMPLATE (Screenshot 2) */}
-          {mode === "TEMPLATE" && (
-            <div>
-              <label className="block font-bold text-slate-800 mb-1">Task List</label>
-              <select
-                value={selectedTemplateList}
-                onChange={(e) => setSelectedTemplateList(e.target.value)}
-                className="w-full rounded border border-slate-300 p-2.5 text-xs bg-white focus:border-orange-500 cursor-pointer font-semibold"
-              >
-                <option value="Launch Checklist">Launch Checklist</option>
-                <option value="Architecture Floor Plan & Elevation">Architecture Floor Plan & Elevation</option>
-                <option value="HR Employee Onboarding Checklist">HR Employee Onboarding Checklist</option>
-                <option value="QA Software Testing Suite">QA Software Testing Suite</option>
-              </select>
-
-              {/* Toggle back link matching Screenshot 2 */}
-              <div className="mt-1.5 text-xs font-semibold">
-                <button
-                  type="button"
-                  onClick={() => setMode("NORMAL")}
-                  className="text-orange-600 hover:underline cursor-pointer"
-                >
-                  Enter Task List
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Mode 3: CLONE FROM PROJECT OR PROJECT TEMPLATE */}
+          {/* Mode 2: CLONE FROM PROJECT */}
           {mode === "PROJECT" && (
             <div className="space-y-3">
               <div>
-                <label className="block font-bold text-slate-800 mb-1">Select Project Template</label>
+                <label className="block font-bold text-slate-800 mb-1">Select Template</label>
                 <select
                   value={selectedProjectTemplate}
                   onChange={(e) => setSelectedProjectTemplate(e.target.value)}
-                  className="w-full rounded border border-slate-300 p-2.5 text-xs bg-white focus:border-orange-500 cursor-pointer font-semibold"
+                  className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-xs bg-white focus:border-[#0066FF] cursor-pointer font-semibold"
                 >
-                  <option value="Zylker Solutions Template">Zylker Solutions Template</option>
-                  <option value="ERP Software Master Template">ERP Software Master Template</option>
-                  <option value="Donnelly Apartments WBS Template">Donnelly Apartments WBS Template</option>
+                  <option value="Standard Master Template">Standard Master Template</option>
+                  <option value="Agile SDLC Template">Agile SDLC Template</option>
+                  <option value="Civil WBS Template">Civil WBS Template</option>
                 </select>
               </div>
 
-              <div className="mt-1.5 text-xs font-semibold">
+              <div className="mt-1 text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => setMode("NORMAL")}
-                  className="text-orange-600 hover:underline cursor-pointer"
+                  className="text-[#0066FF] hover:underline cursor-pointer"
                 >
-                  Enter Task List
+                  ← Enter Custom Task List Name
                 </button>
               </div>
             </div>
           )}
 
-          {/* Field 2: Related Milestone matching Screenshots 1 & 2 */}
+          {/* Related Phase matching Screenshot 1 */}
           <div>
-            <label className="block font-bold text-slate-700 mb-1">Related Milestone</label>
+            <label className="block font-bold text-slate-800 mb-1.5">Related Phase</label>
             <select
-              value={relatedMilestone}
-              onChange={(e) => setRelatedMilestone(e.target.value)}
-              className="w-full rounded border border-slate-300 p-2 text-xs bg-white focus:border-orange-500 cursor-pointer"
+              value={relatedPhase}
+              onChange={(e) => setRelatedPhase(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-xs bg-white focus:border-[#0066FF] focus:outline-none cursor-pointer font-semibold text-slate-800"
             >
               <option value="None">None</option>
-              <option value="Planning">Planning</option>
-              <option value="Design">Design</option>
-              <option value="Build">Build</option>
-              <option value="Testing">Testing</option>
-              <option value="Cleaning and final walk-through work items">Cleaning and final walk-through work items</option>
+              <option value="Phase 1: Planning">Phase 1: Planning</option>
+              <option value="Phase 2: Execution">Phase 2: Execution</option>
+              <option value="Phase 3: QA & Testing">Phase 3: QA & Testing</option>
             </select>
           </div>
 
-          {/* Field 3: Task List Flag ⓘ matching Screenshots 1 & 2 */}
+          {/* Task List Flag ℹ matching Screenshot 1 */}
           <div>
-            <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1">
+            <label className="block font-bold text-slate-800 mb-1.5 flex items-center gap-1">
               <span>Task List Flag</span>
-              <span title="Internal: Portal users only. External: Portal & Client users.">
+              <span title="Internal: Portal users only. External: Public or client access.">
                 <Info className="h-3.5 w-3.5 text-slate-400 cursor-pointer" />
               </span>
             </label>
             <select
               value={taskListFlag}
               onChange={(e) => setTaskListFlag(e.target.value as any)}
-              className="w-full rounded border border-slate-300 p-2 text-xs bg-white focus:border-orange-500 cursor-pointer font-medium"
+              className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-xs bg-white focus:border-[#0066FF] focus:outline-none cursor-pointer font-semibold text-slate-800"
             >
               <option value="Internal">Internal</option>
               <option value="External">External</option>
+              <option value="Public">Public</option>
             </select>
           </div>
 
-          {/* Field 4: Tags Input matching Screenshots 1 & 2 */}
+          {/* Tags Input matching Screenshot 1 */}
           <div>
-            <label className="block font-bold text-slate-700 mb-1">Tags</label>
-            <div className="flex flex-wrap items-center gap-1.5 rounded border border-orange-400 p-2 bg-white min-h-[38px]">
+            <label className="block font-bold text-slate-800 mb-1.5">Tags</label>
+            <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-slate-300 p-2 bg-white min-h-[42px] focus-within:border-[#0066FF]">
               {tags.map((t) => (
                 <span
                   key={t}
-                  className="inline-flex items-center gap-1 bg-[#38bdf8] text-white px-2 py-0.5 rounded-full text-[11px] font-bold shadow-2xs"
+                  className="inline-flex items-center gap-1 bg-blue-100 text-[#0066FF] px-2.5 py-0.5 rounded-md text-[11px] font-bold border border-blue-200"
                 >
                   {t}
                   <button
                     type="button"
                     onClick={() => handleRemoveTag(t)}
-                    className="hover:text-slate-200 font-bold"
+                    className="hover:text-blue-900 font-bold ml-0.5"
                   >
-                    ✕
+                    ×
                   </button>
                 </span>
               ))}
               <input
                 type="text"
-                placeholder="Add tag and press Enter..."
+                placeholder="Enter a tag name..."
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -238,47 +205,34 @@ export default function CreateTaskListModal({
                     handleAddTag();
                   }
                 }}
-                className="flex-1 min-w-[100px] border-none text-xs focus:outline-none bg-transparent"
+                className="flex-1 min-w-[140px] border-none text-xs text-slate-800 focus:outline-none px-1"
               />
             </div>
           </div>
-
-          {/* Field 5: Shift Date DateTime Picker matching Screenshot 2 */}
-          {mode !== "NORMAL" && (
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Shift Date</label>
-              <div className="relative">
-                <input
-                  type="datetime-local"
-                  value={shiftDate}
-                  onChange={(e) => setShiftDate(e.target.value)}
-                  className="w-full rounded border border-slate-300 p-2 text-xs font-mono bg-white focus:border-orange-500"
-                />
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Bottom Action Buttons matching Screenshots 1 & 2 */}
-        <div className="p-6 border-t border-slate-200 bg-slate-50 flex items-center gap-2">
+        {/* Footer Action Buttons matching Screenshot 1 */}
+        <div className="p-5 border-t border-slate-200 bg-slate-50 flex items-center gap-2.5">
           <button
             type="button"
             onClick={() => handleSave(false)}
-            className="rounded bg-orange-500 hover:bg-orange-600 px-6 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
+            disabled={!taskListName.trim()}
+            className="rounded-lg bg-[#0066FF] hover:bg-blue-700 px-5 py-2 text-xs font-bold text-white shadow-xs cursor-pointer disabled:opacity-50"
           >
             Add
           </button>
           <button
             type="button"
             onClick={() => handleSave(true)}
-            className="rounded border border-orange-400 bg-white px-5 py-2 text-xs font-bold text-orange-600 hover:bg-orange-50 cursor-pointer"
+            disabled={!taskListName.trim()}
+            className="rounded-lg border border-[#0066FF] bg-white px-4 py-2 text-xs font-bold text-[#0066FF] hover:bg-blue-50 cursor-pointer disabled:opacity-50"
           >
             Add More
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="rounded border border-orange-400 bg-white px-5 py-2 text-xs font-bold text-orange-600 hover:bg-orange-50 cursor-pointer"
+            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
           >
             Cancel
           </button>

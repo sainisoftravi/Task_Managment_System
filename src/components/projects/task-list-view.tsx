@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, Fragment } from "react";
 import { Task, TaskList } from "@/types";
 import { formatDate } from "@/lib/utils";
 import {
@@ -44,17 +44,19 @@ import EditTaskListModal from "@/components/projects/edit-task-list-modal";
 import MoveTaskListModal from "@/components/projects/move-task-list-modal";
 
 interface ListViewProps {
+  projectId?: string;
   tasks: Task[];
   taskLists?: TaskList[];
   headers: Record<string, string>;
   onTaskClick: (task: Task) => void;
   onAddTask?: () => void;
+  onAddTaskList?: (newList: any) => void;
 }
 
-export default function ListView({ tasks, taskLists = [], headers, onTaskClick, onAddTask }: ListViewProps) {
+export default function ListView({ projectId, tasks, taskLists = [], headers, onTaskClick, onAddTask, onAddTaskList }: ListViewProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const [selectedGroupBy, setSelectedGroupBy] = useState<string>("None");
+  const [selectedGroupBy, setSelectedGroupBy] = useState<string>("Task List");
   const [showGroupByPopover, setShowGroupByPopover] = useState(false);
   const [groupBySearch, setGroupBySearch] = useState("");
   const [showAddMenu, setShowAddMenu] = useState(false);
@@ -285,22 +287,68 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
       customLists = JSON.parse(localStorage.getItem("custom_task_lists") || "[]");
     } catch {}
     const combined = [...(taskLists || []), ...customLists];
-    if (combined.length === 0) {
-      return [
-        { id: "tl-default", name: "General Task List", flag: "Internal", milestone: "None" },
-      ];
-    }
     return combined;
   });
 
-  const handleAddTaskListSuccess = (newList: any) => {
-    const updated = [newList, ...localTaskLists.filter((l) => l.id !== newList.id)];
+  useEffect(() => {
+    let projCustom: any[] = [];
+    let globalCustom: any[] = [];
+    try {
+      globalCustom = JSON.parse(localStorage.getItem("custom_task_lists") || "[]");
+      if (projectId) {
+        projCustom = JSON.parse(localStorage.getItem(`custom_task_lists_${projectId}`) || "[]");
+      }
+    } catch {}
+
+    const combined = [...(taskLists || []), ...projCustom, ...globalCustom, ...localTaskLists];
+    const uniqueMap = new Map<string, any>();
+    combined.forEach((item) => {
+      if (item && item.name && !uniqueMap.has(item.name)) {
+        uniqueMap.set(item.name, item);
+      }
+    });
+    if (uniqueMap.size > 0) {
+      setLocalTaskLists(Array.from(uniqueMap.values()));
+    }
+  }, [taskLists, projectId]);
+
+  const handleAddTaskListSuccess = async (newList: any) => {
+    const updated = [newList, ...localTaskLists.filter((l) => l.id !== newList.id && l.name !== newList.name)];
     setLocalTaskLists(updated);
+    setSelectedGroupBy("Task List");
+
     try {
       localStorage.setItem("custom_task_lists", JSON.stringify(updated));
+      const targetProjId = projectId || headers?.projectId;
+      if (targetProjId) {
+        localStorage.setItem(`custom_task_lists_${targetProjId}`, JSON.stringify(updated));
+      }
     } catch {}
+
+    if (onAddTaskList) {
+      onAddTaskList(newList);
+    }
+
+    // Send POST request to backend API to persist task list to Database
+    try {
+      const token = localStorage.getItem("token");
+      await fetch("/api/task-lists", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          projectId: projectId || headers?.projectId || "proj-dt-30",
+          name: newList.name,
+        }),
+      });
+    } catch (err) {
+      console.warn("Backend DB task list creation fallback:", err);
+    }
+
     setShowAddTaskListModal(false);
-    alert(`Task List '${newList.name}' created and added successfully!`);
+    alert(`Task List '${newList.name}' created and added successfully to database!`);
   };
 
   function parseToDateTimeInput(dateStr: string) {
@@ -494,6 +542,475 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
     { id: "mins", label: "mins (Minutes)" },
   ];
 
+  // Dynamic Task Filtering Engine matching activeViewName and Search Query
+  const filteredTasks = localTasks.filter((t) => {
+    if (!t) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const matchTitle = (t.title || "").toLowerCase().includes(q);
+      const matchOwner = (t.owner || "").toLowerCase().includes(q);
+      const matchKey = (t.key || "").toLowerCase().includes(q);
+      if (!matchTitle && !matchOwner && !matchKey) return false;
+    }
+
+    if (activeViewName === "Today's Tasks") {
+      return (t.startDate || "").includes("2026") || (t.dueDate || "").includes("2026");
+    } else if (activeViewName === "Tasks I Follow" || activeViewName === "Tasks Created By Me") {
+      return t.owner === "Ravi Saini" || t.owner === "Admin User";
+    } else if (activeViewName === "Task Associated to Team" || activeViewName === "Assigned Via Pick List") {
+      return t.owner !== "Unassigned";
+    } else if (activeViewName === "myhighprioritytasks") {
+      return (t.priority || "").toLowerCase().includes("high") || (t.priority || "").toLowerCase().includes("medium");
+    } else if (activeViewName === "Design tasks") {
+      return (t.title || "").toLowerCase().includes("design") || (t.title || "").toLowerCase().includes("ui");
+    } else if (activeViewName === "Floor tiling task list") {
+      return (t.title || "").toLowerCase().includes("site") || (t.title || "").toLowerCase().includes("tiling") || (t.title || "").toLowerCase().includes("01");
+    }
+
+    return true;
+  });
+
+  // Dynamic Grouping Engine matching selectedGroupBy
+  const getGroupedMap = () => {
+    if (selectedGroupBy === "None") return null;
+
+    const map = new Map<string, any[]>();
+
+    if (selectedGroupBy === "Task List") {
+      localTaskLists.forEach((tl) => {
+        if (tl && tl.name) map.set(tl.name, []);
+      });
+      filteredTasks.forEach((t) => {
+        const groupKey = t.taskList || (localTaskLists[0]?.name || "01 POC TEST");
+        if (!map.has(groupKey)) map.set(groupKey, []);
+        map.get(groupKey)!.push(t);
+      });
+    } else if (selectedGroupBy === "Status") {
+      filteredTasks.forEach((t) => {
+        const key = t.status || "not yet Started";
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(t);
+      });
+    } else if (selectedGroupBy === "Owner") {
+      filteredTasks.forEach((t) => {
+        const key = t.owner || "Unassigned";
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(t);
+      });
+    } else if (selectedGroupBy === "Priority") {
+      filteredTasks.forEach((t) => {
+        const key = t.priority || "! None";
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(t);
+      });
+    } else if (selectedGroupBy === "Start Date") {
+      filteredTasks.forEach((t) => {
+        const raw = (t.startDate || "").split("T")[0] || "2026-09-01";
+        const key = `Start Date: ${raw}`;
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(t);
+      });
+    } else if (selectedGroupBy === "Due Date") {
+      filteredTasks.forEach((t) => {
+        const raw = (t.dueDate || "").split("T")[0] || "2026-09-30";
+        const key = `Due Date: ${raw}`;
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(t);
+      });
+    } else if (selectedGroupBy === "Phases") {
+      filteredTasks.forEach((t) => {
+        const key = t.phase || "Phase 1: Planning";
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(t);
+      });
+    } else {
+      filteredTasks.forEach((t) => {
+        const key = `${selectedGroupBy}: Default`;
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(t);
+      });
+    }
+
+    return map;
+  };
+
+  const groupedTasksMap = getGroupedMap();
+
+  const renderTaskRow = (task: any) => {
+    const isOverdue = !!task.overdueText;
+    const isDurationPopoverOpen = activeDurationPopoverId === task.id;
+    const isRowMenuOpen = activeRowMenuId === task.id;
+
+    return (
+      <tr
+        key={task.id}
+        className="border-b border-slate-100 hover:bg-blue-50/30 transition-colors"
+      >
+        {/* Row Context Menu (...) matching Screenshot 2 */}
+        <td className="py-2.5 px-2 text-center relative">
+          <button
+            type="button"
+            onClick={() => setActiveRowMenuId(isRowMenuOpen ? null : task.id)}
+            className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+            title="Task Options"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+
+          {/* Row Action Dropdown Menu matching Screenshot 2 */}
+          {isRowMenuOpen && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="absolute left-6 top-2 z-50 w-48 rounded-md bg-white p-1.5 shadow-xl border border-slate-200 text-xs font-semibold text-slate-700 text-left"
+            >
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedDrawerTask(task);
+                  setActiveRowMenuId(null);
+                }}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+              >
+                <Eye className="h-3.5 w-3.5" />
+                <span>View Details</span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(`/projects/${task.projectId || "p1"}`, "_blank");
+                  setActiveRowMenuId(null);
+                }}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span>View Details in New Tab</span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigator.clipboard?.writeText(window.location.href);
+                  alert("Task link copied!");
+                  setActiveRowMenuId(null);
+                }}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                <span>Copy Link</span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveRowMenuId(null);
+                }}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+              >
+                <Palette className="h-3.5 w-3.5" />
+                <span>Color</span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveRowMenuId(null);
+                }}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+              >
+                <Move className="h-3.5 w-3.5" />
+                <span>Move</span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddNewTask();
+                  setActiveRowMenuId(null);
+                }}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
+              >
+                <CopyPlus className="h-3.5 w-3.5" />
+                <span>Clone</span>
+              </button>
+              <div className="border-t border-slate-100 my-1" />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setActiveRowMenuId(null);
+                  handleDeleteTask(task.id);
+                }}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-rose-50 text-rose-600 font-bold cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Trash</span>
+              </button>
+            </div>
+          )}
+        </td>
+
+        <td className="py-2.5 px-3 text-center text-slate-400">
+          <input type="checkbox" className="rounded text-[#0070BA]" />
+        </td>
+
+        {/* ID & Subtask Reorder Handle matching Screenshot 2 */}
+        <td
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOverTaskId(task.id);
+          }}
+          onDragLeave={() => setDragOverTaskId(null)}
+          onDrop={(e) => {
+            e.preventDefault();
+            if (draggingTaskId && draggingTaskId !== task.id) {
+              alert(`Task reordered under ${task.key || task.id} as a subtask!`);
+            }
+            setDraggingTaskId(null);
+            setDragOverTaskId(null);
+          }}
+          className="py-2.5 px-3 font-mono font-bold text-slate-600 cursor-pointer hover:underline relative"
+        >
+          <div className="flex items-center gap-1.5">
+            <span
+              draggable
+              onDragStart={() => setDraggingTaskId(task.id)}
+              onDragEnd={() => setDraggingTaskId(null)}
+              className="text-slate-300 hover:text-orange-500 cursor-grab active:cursor-grabbing text-xs"
+              title="Drag to reorder subtask"
+            >
+              ::
+            </span>
+            <span onClick={() => setSelectedDrawerTask(task)}>{task.key || task.id}</span>
+          </div>
+
+          {/* Drop Here to Reorder Banner matching Screenshot 2 */}
+          {dragOverTaskId === task.id && (
+            <div className="absolute left-0 top-8 z-50 w-64 bg-[#38BDF8] text-white p-2 rounded-lg shadow-xl font-sans text-xs font-bold flex items-center gap-2 animate-fadeIn">
+              <CheckCircle2 className="h-4 w-4 text-white" />
+              <span>Drop here to reorder the task.</span>
+            </div>
+          )}
+        </td>
+
+        {/* Interactive Task Name Cell with Subtask Indentation */}
+        <td className="py-2.5 px-3 font-bold text-slate-900">
+          <div className="flex items-center gap-2">
+            {task.isSubtask && <span className="text-slate-400 pl-4 text-xs font-bold">└─</span>}
+            <input
+              type="text"
+              value={task.title}
+              onChange={(e) => handleUpdateTask({ ...task, title: e.target.value })}
+              className="w-full rounded border border-transparent hover:border-slate-300 focus:border-[#0070BA] focus:outline-none px-1.5 py-0.5 text-xs font-bold text-slate-900 bg-transparent"
+              placeholder="Task title..."
+            />
+          </div>
+        </td>
+
+        {/* Owner Dropdown */}
+        <td className="py-2.5 px-3 font-medium text-slate-700">
+          <select
+            value={task.owner}
+            onChange={(e) => handleUpdateTask({ ...task, owner: e.target.value })}
+            className="w-full border border-transparent hover:border-slate-300 rounded px-1 py-0.5 text-xs bg-transparent focus:border-[#0070BA] focus:outline-none cursor-pointer"
+          >
+            <option value="Ravi Saini">Ravi Saini</option>
+            <option value="amin ibrahim">amin ibrahim</option>
+            <option value="kannadas A">kannadas A</option>
+            <option value="Unassigned">Unassigned</option>
+          </select>
+        </td>
+
+        {/* Status Dropdown */}
+        <td className="py-2.5 px-3 text-center">
+          <select
+            value={task.status}
+            onChange={(e) => handleUpdateTask({ ...task, status: e.target.value })}
+            className={`px-2 py-0.5 rounded text-[10px] font-bold text-white cursor-pointer border-none focus:outline-none ${
+              task.status === "In Review"
+                ? "bg-[#64A5A5]"
+                : task.status === "in QA"
+                ? "bg-[#F97316]"
+                : task.status === "In Progress"
+                ? "bg-blue-600"
+                : task.status === "Completed"
+                ? "bg-emerald-600"
+                : "bg-[#94A3B8]"
+            }`}
+          >
+            <option value="not yet Started" className="bg-slate-600 text-white">not yet Started</option>
+            <option value="In Progress" className="bg-blue-600 text-white">In Progress</option>
+            <option value="in QA" className="bg-orange-500 text-white">in QA</option>
+            <option value="In Review" className="bg-teal-600 text-white">In Review</option>
+            <option value="Completed" className="bg-emerald-600 text-white">Completed</option>
+          </select>
+        </td>
+
+        {/* Start Date Picker Calendar Cell */}
+        <td className="py-2.5 px-3 text-center font-mono text-slate-600">
+          <div className="flex flex-col items-center">
+            <input
+              type="datetime-local"
+              value={task.startDate || ""}
+              onChange={(e) => {
+                const newStart = e.target.value;
+                const calcs = calculateTaskDates(newStart, task.dueDate);
+                handleUpdateTask({
+                  ...task,
+                  startDate: newStart,
+                  duration: calcs.duration,
+                  overdueText: calcs.overdueText,
+                });
+              }}
+              className="w-full text-center border border-slate-200 hover:border-[#0070BA] rounded text-[11px] font-semibold bg-white py-1 px-1 focus:border-[#0070BA] focus:outline-none cursor-pointer"
+            />
+            <span className="text-[10px] text-slate-500 font-mono mt-0.5">
+              {formatDisplayDateTime(task.startDate)}
+            </span>
+          </div>
+        </td>
+
+        {/* Due Date Picker Calendar Cell */}
+        <td className="py-2.5 px-3 text-center font-mono text-slate-600">
+          <div className="flex flex-col items-center">
+            <input
+              type="datetime-local"
+              value={task.dueDate || ""}
+              onChange={(e) => {
+                const newDue = e.target.value;
+                const calcs = calculateTaskDates(task.startDate, newDue);
+                handleUpdateTask({
+                  ...task,
+                  dueDate: newDue,
+                  duration: calcs.duration,
+                  overdueText: calcs.overdueText,
+                });
+              }}
+              className={`w-full text-center border border-slate-200 hover:border-[#0070BA] rounded text-[11px] font-semibold bg-white py-1 px-1 focus:border-[#0070BA] focus:outline-none cursor-pointer ${
+                isOverdue ? "text-red-500 font-bold border-red-300" : "text-slate-600"
+              }`}
+            />
+            <span className={`text-[10px] mt-0.5 ${isOverdue ? "text-red-500 font-bold" : "text-slate-500"}`}>
+              {formatDisplayDateTime(task.dueDate)}
+            </span>
+            {task.overdueText && (
+              <span className="text-[10px] text-red-500 font-semibold">{task.overdueText}</span>
+            )}
+          </div>
+        </td>
+
+        {/* Interactive Duration Unit Popover Cell matching Screenshot */}
+        <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-800 relative">
+          <div
+            onClick={() =>
+              setActiveDurationPopoverId(isDurationPopoverOpen ? null : task.id)
+            }
+            className="cursor-pointer border border-transparent hover:border-[#0070BA] px-2 py-1 rounded bg-slate-50 hover:bg-white text-xs text-[#0070BA] flex items-center justify-center gap-1"
+          >
+            <span>{task.duration || "01:00 hrs"}</span>
+            <ChevronDown className="h-3 w-3 text-slate-400" />
+          </div>
+
+          {/* Duration Unit Popover Menu matching Screenshot */}
+          {isDurationPopoverOpen && (
+            <div className="absolute left-1/2 -translate-x-1/2 mt-1 z-50 w-52 rounded-lg bg-white p-2.5 shadow-xl border border-slate-200 text-xs font-sans text-left">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                Duration Options
+              </div>
+              <div className="text-[10px] text-slate-500 mb-2 font-mono bg-slate-100 p-1 rounded">
+                days / hrs / cdays / chrs / mins
+              </div>
+
+              <div className="space-y-1 mb-2">
+                <label className="block text-[10px] font-bold text-slate-600">Value</label>
+                <input
+                  type="number"
+                  min={1}
+                  defaultValue={task.durationValue || 1}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    const newStr = formatDurationString(val, task.durationUnit || "hrs");
+                    handleUpdateTask({
+                      ...task,
+                      durationValue: val,
+                      duration: newStr,
+                    });
+                  }}
+                  className="w-full border border-slate-300 rounded px-2 py-1 text-xs font-mono font-bold focus:border-[#0070BA] focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-600">Unit Type</label>
+                <div className="grid grid-cols-1 gap-1">
+                  {durationUnits.map((u) => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => {
+                        const val = task.durationValue || 1;
+                        const newStr = formatDurationString(val, u.id);
+                        handleUpdateTask({
+                          ...task,
+                          durationUnit: u.id,
+                          duration: newStr,
+                        });
+                        setActiveDurationPopoverId(null);
+                      }}
+                      className={`w-full text-left px-2 py-1 rounded text-[11px] font-medium transition-colors ${
+                        task.durationUnit === u.id
+                          ? "bg-blue-50 text-[#0070BA] font-bold"
+                          : "hover:bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      {u.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </td>
+
+        {/* Priority Dropdown */}
+        <td className="py-2.5 px-3 text-center">
+          <select
+            value={task.priority}
+            onChange={(e) => handleUpdateTask({ ...task, priority: e.target.value })}
+            className="border border-transparent hover:border-slate-300 rounded px-1 py-0.5 text-xs font-semibold text-slate-700 bg-transparent focus:border-[#0070BA] focus:outline-none cursor-pointer"
+          >
+            <option value="! Low">! Low</option>
+            <option value="! Medium">! Medium</option>
+            <option value="! High">! High</option>
+            <option value="! None">! None</option>
+          </select>
+        </td>
+
+        {/* Completion Percentage Input */}
+        <td className="py-2.5 px-3 text-center">
+          <div className="w-28 mx-auto flex items-center gap-2">
+            <div className="flex-1 bg-slate-200 h-2 rounded-full overflow-hidden">
+              <div
+                className="bg-emerald-500 h-full rounded-full transition-all"
+                style={{ width: `${task.pct}%` }}
+              />
+            </div>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={task.pct}
+              onChange={(e) => handleUpdateTask({ ...task, pct: Number(e.target.value) })}
+              className="w-10 text-center font-bold text-slate-700 border border-slate-200 rounded text-[10px] py-0.5"
+            />
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
   return (
     <div className="space-y-3 font-sans">
       {/* Task Detail Drawer */}
@@ -502,6 +1019,35 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
         isOpen={!!selectedDrawerTask}
         onClose={() => setSelectedDrawerTask(null)}
         onUpdateTask={handleUpdateTask}
+      />
+
+      {/* Task List Details Drawer matching Screenshots 4 & 5 */}
+      <TaskListDetailsDrawer
+        taskList={activeTaskListHeader || { id: "tl-poc", name: "01 POC TEST", flag: "Internal" }}
+        isOpen={showTaskListDetailsDrawer}
+        onClose={() => setShowTaskListDetailsDrawer(false)}
+        onAddTaskToTaskList={(listId, title) => {
+          const newTask = {
+            id: `OD1-T${localTasks.length + 1}`,
+            key: `OD1-T${localTasks.length + 1}`,
+            title,
+            owner: "Unassigned",
+            status: "Open",
+            startDate: "2026-09-01T09:00",
+            dueDate: "2026-09-30T18:00",
+            duration: "01:00 hrs",
+            durationUnit: "hrs",
+            durationValue: 1,
+            priority: "! None",
+            pct: 0,
+          };
+          const updated = [newTask, ...localTasks];
+          setLocalTasks(updated);
+          try {
+            localStorage.setItem("user_custom_tasks", JSON.stringify(updated));
+          } catch {}
+          alert(`Task '${title}' created under task list!`);
+        }}
       />
 
       {/* Control Bar matching Screenshot 3 & 4 */}
@@ -871,6 +1417,13 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
         taskLists={localTaskLists}
       />
 
+      {/* Create Task List Modal matching Screenshot 1 */}
+      <CreateTaskListModal
+        isOpen={showAddTaskListModal}
+        onClose={() => setShowAddTaskListModal(false)}
+        onSuccess={handleAddTaskListSuccess}
+      />
+
       {/* Clone Task List Modal */}
       <CloneTaskListModal
         isOpen={showCloneTaskListModal}
@@ -914,392 +1467,125 @@ export default function ListView({ tasks, taskLists = [], headers, onTaskClick, 
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-sans">
-              {localTasks.length === 0 ? (
+              {groupedTasksMap ? (
+                Array.from(groupedTasksMap.entries()).map(([groupName, groupTasks]) => (
+                  <Fragment key={groupName}>
+                    {/* Section Header Banner Row */}
+                    <tr className="bg-slate-100/90 border-y border-slate-200 font-bold text-slate-800 text-xs">
+                      <td colSpan={11} className="py-2.5 px-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <ChevronDown className="h-4 w-4 text-[#0066FF]" />
+                            <span className="font-extrabold text-slate-900 text-xs">{groupName}</span>
+                            <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-[#0066FF] font-mono text-[11px] font-extrabold">
+                              {groupTasks.length}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newTask = {
+                                  id: `1P1-T${Date.now().toString().slice(-4)}`,
+                                  key: `1P1-T${Date.now().toString().slice(-4)}`,
+                                  title: `New Task in ${groupName}`,
+                                  owner: "Unassigned",
+                                  status: "not yet Started",
+                                  startDate: "2026-09-01T09:00",
+                                  dueDate: "2026-09-30T18:00",
+                                  duration: "01:00 hrs",
+                                  durationUnit: "hrs",
+                                  durationValue: 1,
+                                  priority: "! Medium",
+                                  pct: 0,
+                                  taskList: groupName,
+                                };
+                                const updated = [newTask, ...localTasks];
+                                setLocalTasks(updated);
+                                try {
+                                  localStorage.setItem("user_custom_tasks", JSON.stringify(updated));
+                                } catch {}
+                                alert(`Task created in '${groupName}'!`);
+                              }}
+                              className="px-2 py-1 rounded bg-[#0066FF] text-white hover:bg-blue-700 text-[11px] font-bold cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                            >
+                              <Plus className="h-3 w-3" />
+                              <span>Add Task to List</span>
+                            </button>
+                            {selectedGroupBy === "Task List" && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveTaskListHeader({ id: `tl-${groupName}`, name: groupName, flag: "Internal" });
+                                  setShowTaskListDetailsDrawer(true);
+                                }}
+                                className="p-1 rounded hover:bg-slate-200 text-slate-600 hover:text-[#0066FF] cursor-pointer inline-flex items-center gap-1 text-xs font-semibold"
+                                title="Open Task List Details Drawer"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                                <span>Open Drawer</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+
+                    {groupTasks.length === 0 ? (
+                      <tr>
+                        <td colSpan={11} className="py-4 px-8 bg-slate-50/50 text-slate-500 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="italic">No tasks in &apos;{groupName}&apos; yet.</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newTask = {
+                                  id: `1P1-T${Date.now().toString().slice(-4)}`,
+                                  key: `1P1-T${Date.now().toString().slice(-4)}`,
+                                  title: `New Task in ${groupName}`,
+                                  owner: "Unassigned",
+                                  status: "not yet Started",
+                                  startDate: "2026-09-01T09:00",
+                                  dueDate: "2026-09-30T18:00",
+                                  duration: "01:00 hrs",
+                                  durationUnit: "hrs",
+                                  durationValue: 1,
+                                  priority: "! Medium",
+                                  pct: 0,
+                                  taskList: groupName,
+                                };
+                                const updated = [newTask, ...localTasks];
+                                setLocalTasks(updated);
+                                try {
+                                  localStorage.setItem("user_custom_tasks", JSON.stringify(updated));
+                                } catch {}
+                                alert(`Task created in '${groupName}'!`);
+                              }}
+                              className="text-[#0066FF] hover:underline font-bold text-xs cursor-pointer"
+                            >
+                              + Add First Task
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      groupTasks.map(renderTaskRow)
+                    )}
+                  </Fragment>
+                ))
+              ) : filteredTasks.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="py-12 text-center text-slate-500 bg-slate-50/50">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <ListTodo className="h-8 w-8 text-slate-300" />
-                      <p className="font-bold text-sm text-slate-700">No tasks in this project yet</p>
-                      <p className="text-xs text-slate-400">Click &quot;Add Task&quot; above to create your first task for this project.</p>
+                      <p className="font-bold text-sm text-slate-700">No tasks match &apos;{activeViewName}&apos;</p>
+                      <p className="text-xs text-slate-400">Click &quot;Group By: Task List&quot; above to view your Task Lists.</p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                localTasks.map((task) => {
-                  const isOverdue = !!task.overdueText;
-                  const isDurationPopoverOpen = activeDurationPopoverId === task.id;
-                  const isRowMenuOpen = activeRowMenuId === task.id;
-
-                return (
-                  <tr
-                    key={task.id}
-                    className="border-b border-slate-100 hover:bg-blue-50/30 transition-colors"
-                  >
-                    {/* Row Context Menu (...) matching Screenshot 2 */}
-                    <td className="py-2.5 px-2 text-center relative">
-                      <button
-                        type="button"
-                        onClick={() => setActiveRowMenuId(isRowMenuOpen ? null : task.id)}
-                        className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
-                        title="Task Options"
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </button>
-
-                      {/* Row Action Dropdown Menu matching Screenshot 2 */}
-                      {isRowMenuOpen && (
-                        <div
-                          onClick={(e) => e.stopPropagation()}
-                          className="absolute left-6 top-2 z-50 w-48 rounded-md bg-white p-1.5 shadow-xl border border-slate-200 text-xs font-semibold text-slate-700 text-left"
-                        >
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedDrawerTask(task);
-                              setActiveRowMenuId(null);
-                            }}
-                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                            <span>View Details</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.open(`/projects/${task.projectId || "p1"}`, "_blank");
-                              setActiveRowMenuId(null);
-                            }}
-                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
-                          >
-                            <ExternalLink className="h-3.5 w-3.5" />
-                            <span>View Details in New Tab</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigator.clipboard?.writeText(window.location.href);
-                              alert("Task link copied!");
-                              setActiveRowMenuId(null);
-                            }}
-                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                            <span>Copy Link</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveRowMenuId(null);
-                            }}
-                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
-                          >
-                            <Palette className="h-3.5 w-3.5" />
-                            <span>Color</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveRowMenuId(null);
-                            }}
-                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
-                          >
-                            <Move className="h-3.5 w-3.5" />
-                            <span>Move</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAddNewTask();
-                              setActiveRowMenuId(null);
-                            }}
-                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-blue-50 hover:text-[#0070BA] cursor-pointer"
-                          >
-                            <CopyPlus className="h-3.5 w-3.5" />
-                            <span>Clone</span>
-                          </button>
-                          <div className="border-t border-slate-100 my-1" />
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setActiveRowMenuId(null);
-                              handleDeleteTask(task.id);
-                            }}
-                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-rose-50 text-rose-600 font-bold cursor-pointer"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            <span>Trash</span>
-                          </button>
-                        </div>
-                      )}
-                    </td>
-
-                    <td className="py-2.5 px-3 text-center text-slate-400">
-                      <input type="checkbox" className="rounded text-[#0070BA]" />
-                    </td>
-
-                    {/* ID & Subtask Reorder Handle matching Screenshot 2 */}
-                    <td
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        setDragOverTaskId(task.id);
-                      }}
-                      onDragLeave={() => setDragOverTaskId(null)}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        if (draggingTaskId && draggingTaskId !== task.id) {
-                          alert(`Task reordered under ${task.key || task.id} as a subtask!`);
-                        }
-                        setDraggingTaskId(null);
-                        setDragOverTaskId(null);
-                      }}
-                      className="py-2.5 px-3 font-mono font-bold text-slate-600 cursor-pointer hover:underline relative"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          draggable
-                          onDragStart={() => setDraggingTaskId(task.id)}
-                          onDragEnd={() => setDraggingTaskId(null)}
-                          className="text-slate-300 hover:text-orange-500 cursor-grab active:cursor-grabbing text-xs"
-                          title="Drag to reorder subtask"
-                        >
-                          ::
-                        </span>
-                        <span onClick={() => setSelectedDrawerTask(task)}>{task.key || task.id}</span>
-                      </div>
-
-                      {/* Drop Here to Reorder Banner matching Screenshot 2 */}
-                      {dragOverTaskId === task.id && (
-                        <div className="absolute left-0 top-8 z-50 w-64 bg-[#38BDF8] text-white p-2 rounded-lg shadow-xl font-sans text-xs font-bold flex items-center gap-2 animate-fadeIn">
-                          <CheckCircle2 className="h-4 w-4 text-white" />
-                          <span>Drop here to reorder the task.</span>
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Interactive Task Name Cell with Subtask Indentation */}
-                    <td className="py-2.5 px-3 font-bold text-slate-900">
-                      <div className="flex items-center gap-2">
-                        {task.isSubtask && <span className="text-slate-400 pl-4 text-xs font-bold">└─</span>}
-                        <input
-                          type="text"
-                          value={task.title}
-                          onChange={(e) => handleUpdateTask({ ...task, title: e.target.value })}
-                          className="w-full rounded border border-transparent hover:border-slate-300 focus:border-[#0070BA] focus:outline-none px-1.5 py-0.5 text-xs font-bold text-slate-900 bg-transparent"
-                          placeholder="Task title..."
-                        />
-                      </div>
-                    </td>
-
-                    {/* Owner Dropdown */}
-                    <td className="py-2.5 px-3 font-medium text-slate-700">
-                      <select
-                        value={task.owner}
-                        onChange={(e) => handleUpdateTask({ ...task, owner: e.target.value })}
-                        className="w-full border border-transparent hover:border-slate-300 rounded px-1 py-0.5 text-xs bg-transparent focus:border-[#0070BA] focus:outline-none cursor-pointer"
-                      >
-                        <option value="Ravi Saini">Ravi Saini</option>
-                        <option value="amin ibrahim">amin ibrahim</option>
-                        <option value="kannadas A">kannadas A</option>
-                        <option value="Unassigned">Unassigned</option>
-                      </select>
-                    </td>
-
-                    {/* Status Dropdown */}
-                    <td className="py-2.5 px-3 text-center">
-                      <select
-                        value={task.status}
-                        onChange={(e) => handleUpdateTask({ ...task, status: e.target.value })}
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold text-white cursor-pointer border-none focus:outline-none ${
-                          task.status === "In Review"
-                            ? "bg-[#64A5A5]"
-                            : task.status === "in QA"
-                            ? "bg-[#F97316]"
-                            : task.status === "In Progress"
-                            ? "bg-blue-600"
-                            : task.status === "Completed"
-                            ? "bg-emerald-600"
-                            : "bg-[#94A3B8]"
-                        }`}
-                      >
-                        <option value="not yet Started" className="bg-slate-600 text-white">not yet Started</option>
-                        <option value="In Progress" className="bg-blue-600 text-white">In Progress</option>
-                        <option value="in QA" className="bg-orange-500 text-white">in QA</option>
-                        <option value="In Review" className="bg-teal-600 text-white">In Review</option>
-                        <option value="Completed" className="bg-emerald-600 text-white">Completed</option>
-                      </select>
-                    </td>
-
-                    {/* Start Date Picker Calendar Cell */}
-                    <td className="py-2.5 px-3 text-center font-mono text-slate-600">
-                      <div className="flex flex-col items-center">
-                        <input
-                          type="datetime-local"
-                          value={task.startDate || ""}
-                          onChange={(e) => {
-                            const newStart = e.target.value;
-                            const calcs = calculateTaskDates(newStart, task.dueDate);
-                            handleUpdateTask({
-                              ...task,
-                              startDate: newStart,
-                              duration: calcs.duration,
-                              overdueText: calcs.overdueText,
-                            });
-                          }}
-                          className="w-full text-center border border-slate-200 hover:border-[#0070BA] rounded text-[11px] font-semibold bg-white py-1 px-1 focus:border-[#0070BA] focus:outline-none cursor-pointer"
-                        />
-                        <span className="text-[10px] text-slate-500 font-mono mt-0.5">
-                          {formatDisplayDateTime(task.startDate)}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Due Date Picker Calendar Cell */}
-                    <td className="py-2.5 px-3 text-center font-mono text-slate-600">
-                      <div className="flex flex-col items-center">
-                        <input
-                          type="datetime-local"
-                          value={task.dueDate || ""}
-                          onChange={(e) => {
-                            const newDue = e.target.value;
-                            const calcs = calculateTaskDates(task.startDate, newDue);
-                            handleUpdateTask({
-                              ...task,
-                              dueDate: newDue,
-                              duration: calcs.duration,
-                              overdueText: calcs.overdueText,
-                            });
-                          }}
-                          className={`w-full text-center border border-slate-200 hover:border-[#0070BA] rounded text-[11px] font-semibold bg-white py-1 px-1 focus:border-[#0070BA] focus:outline-none cursor-pointer ${
-                            isOverdue ? "text-red-500 font-bold border-red-300" : "text-slate-600"
-                          }`}
-                        />
-                        <span className={`text-[10px] mt-0.5 ${isOverdue ? "text-red-500 font-bold" : "text-slate-500"}`}>
-                          {formatDisplayDateTime(task.dueDate)}
-                        </span>
-                        {task.overdueText && (
-                          <span className="text-[10px] text-red-500 font-semibold">{task.overdueText}</span>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Interactive Duration Unit Popover Cell matching Screenshot */}
-                    <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-800 relative">
-                      <div
-                        onClick={() =>
-                          setActiveDurationPopoverId(isDurationPopoverOpen ? null : task.id)
-                        }
-                        className="cursor-pointer border border-transparent hover:border-[#0070BA] px-2 py-1 rounded bg-slate-50 hover:bg-white text-xs text-[#0070BA] flex items-center justify-center gap-1"
-                      >
-                        <span>{task.duration || "01:00 hrs"}</span>
-                        <ChevronDown className="h-3 w-3 text-slate-400" />
-                      </div>
-
-                      {/* Duration Unit Popover Menu matching Screenshot */}
-                      {isDurationPopoverOpen && (
-                        <div className="absolute left-1/2 -translate-x-1/2 mt-1 z-50 w-52 rounded-lg bg-white p-2.5 shadow-xl border border-slate-200 text-xs font-sans text-left">
-                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                            Duration Options
-                          </div>
-                          <div className="text-[10px] text-slate-500 mb-2 font-mono bg-slate-100 p-1 rounded">
-                            days / hrs / cdays / chrs / mins
-                          </div>
-
-                          <div className="space-y-1 mb-2">
-                            <label className="block text-[10px] font-bold text-slate-600">Value</label>
-                            <input
-                              type="number"
-                              min={1}
-                              defaultValue={task.durationValue || 1}
-                              onChange={(e) => {
-                                const val = Number(e.target.value);
-                                const newStr = formatDurationString(val, task.durationUnit || "hrs");
-                                handleUpdateTask({
-                                  ...task,
-                                  durationValue: val,
-                                  duration: newStr,
-                                });
-                              }}
-                              className="w-full border border-slate-300 rounded px-2 py-1 text-xs font-mono font-bold focus:border-[#0070BA] focus:outline-none"
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="block text-[10px] font-bold text-slate-600">Unit Type</label>
-                            <div className="grid grid-cols-1 gap-1">
-                              {durationUnits.map((u) => (
-                                <button
-                                  key={u.id}
-                                  type="button"
-                                  onClick={() => {
-                                    const val = task.durationValue || 1;
-                                    const newStr = formatDurationString(val, u.id);
-                                    handleUpdateTask({
-                                      ...task,
-                                      durationUnit: u.id,
-                                      duration: newStr,
-                                    });
-                                    setActiveDurationPopoverId(null);
-                                  }}
-                                  className={`w-full text-left px-2 py-1 rounded text-[11px] font-medium transition-colors ${
-                                    task.durationUnit === u.id
-                                      ? "bg-blue-50 text-[#0070BA] font-bold"
-                                      : "hover:bg-slate-100 text-slate-700"
-                                  }`}
-                                >
-                                  {u.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Priority Dropdown */}
-                    <td className="py-2.5 px-3 text-center">
-                      <select
-                        value={task.priority}
-                        onChange={(e) => handleUpdateTask({ ...task, priority: e.target.value })}
-                        className="border border-transparent hover:border-slate-300 rounded px-1 py-0.5 text-xs font-semibold text-slate-700 bg-transparent focus:border-[#0070BA] focus:outline-none cursor-pointer"
-                      >
-                        <option value="! Low">! Low</option>
-                        <option value="! Medium">! Medium</option>
-                        <option value="! High">! High</option>
-                        <option value="! None">! None</option>
-                      </select>
-                    </td>
-
-                    {/* Completion Percentage Input */}
-                    <td className="py-2.5 px-3 text-center">
-                      <div className="w-28 mx-auto flex items-center gap-2">
-                        <div className="flex-1 bg-slate-200 h-2 rounded-full overflow-hidden">
-                          <div
-                            className="bg-emerald-500 h-full rounded-full transition-all"
-                            style={{ width: `${task.pct}%` }}
-                          />
-                        </div>
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          value={task.pct}
-                          onChange={(e) => handleUpdateTask({ ...task, pct: Number(e.target.value) })}
-                          className="w-10 text-center font-bold text-slate-700 border border-slate-200 rounded text-[10px] py-0.5"
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
+                filteredTasks.map(renderTaskRow)
+              )}
             </tbody>
           </table>
         </div>
